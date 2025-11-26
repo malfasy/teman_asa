@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:teman_asa/screens/diary_screen.dart'; // Kita buat nanti
-import 'package:teman_asa/screens/music_screen.dart'; // Kita buat nanti
-import 'package:teman_asa/screens/video_player_screen.dart'; // Kita buat nanti
+import 'package:intl/intl.dart'; 
+import 'package:intl/date_symbol_data_local.dart'; 
+import 'package:teman_asa/screens/diary_screen.dart';
+import 'package:teman_asa/screens/music_screen.dart';
+import 'package:teman_asa/screens/video_player_screen.dart';
 import 'package:teman_asa/screens/profile_screen.dart';
 import 'package:teman_asa/theme.dart';
 
@@ -16,16 +18,17 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String userName = "Bunda";
-  List<Map<String, dynamic>> scheduleList = [];
+  Map<String, List<dynamic>> _allSchedules = {};
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('id_ID', null); 
     _loadUserData();
-    _loadSchedule();
+    _loadSchedules();
   }
 
-  // 1. Load Data User & Jadwal dari HP
   void _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -33,210 +36,401 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _loadSchedule() async {
+  void _loadSchedules() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? scheduleString = prefs.getString('daily_schedule');
-    if (scheduleString != null) {
+    final String? dataString = prefs.getString('schedule_history');
+    if (dataString != null) {
       setState(() {
-        scheduleList = List<Map<String, dynamic>>.from(jsonDecode(scheduleString));
+        _allSchedules = Map<String, List<dynamic>>.from(jsonDecode(dataString));
       });
-    } else {
-      // Data default jika kosong
-      scheduleList = [
-        {"time": "07:00", "activity": "Mandi Pagi", "isDone": false},
-        {"time": "08:00", "activity": "Sarapan", "isDone": false},
-      ];
     }
   }
 
-  // 2. Fungsi Tambah Jadwal
-  void _addScheduleItem() {
-    TimeOfDay selectedTime = TimeOfDay.now();
-    TextEditingController activityController = TextEditingController();
+  void _saveSchedules() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('schedule_history', jsonEncode(_allSchedules));
+  }
 
-    showDialog(
+  String _getDateKey(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  List<dynamic> get _currentScheduleList {
+    String key = _getDateKey(_selectedDate);
+    return _allSchedules[key] ?? [];
+  }
+  
+  // --- FORM JADWAL ---
+  void _showScheduleForm({int? indexToEdit}) {
+    String key = _getDateKey(_selectedDate);
+    List<dynamic> currentList = List.from(_allSchedules[key] ?? []);
+
+    TimeOfDay selectedTime = indexToEdit != null 
+        ? _parseTime(currentList[indexToEdit]['time']) 
+        : TimeOfDay.now();
+    
+    TextEditingController activityController = TextEditingController(
+        text: indexToEdit != null ? currentList[indexToEdit]['activity'] : ""
+    );
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Tambah Jadwal", style: Theme.of(context).textTheme.titleMedium),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: activityController,
-              decoration: const InputDecoration(hintText: "Nama Aktivitas (misal: Terapi)"),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                final TimeOfDay? time = await showTimePicker(context: context, initialTime: selectedTime);
-                if (time != null) selectedTime = time;
-              },
-              child: const Text("Pilih Jam"),
-            )
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
-          ElevatedButton(
-            onPressed: () {
-              if (activityController.text.isNotEmpty) {
-                setState(() {
-                  scheduleList.add({
-                    "time": "${selectedTime.hour.toString().padLeft(2,'0')}:${selectedTime.minute.toString().padLeft(2,'0')}",
-                    "activity": activityController.text,
-                    "isDone": false
-                  });
-                  // Urutkan berdasarkan waktu
-                  scheduleList.sort((a, b) => a['time'].compareTo(b['time']));
-                });
-                _saveSchedule();
-                Navigator.pop(context);
-              }
-            },
-            child: const Text("Simpan"),
-          )
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                left: 20,
+                right: 20,
+                top: 10
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 50, height: 5,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  
+                  Text(
+                    indexToEdit != null ? "Edit Jadwal" : "Tambah Kegiatan Baru",
+                    style: Theme.of(context).textTheme.titleMedium
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  TextField(
+                    controller: activityController,
+                    autofocus: true, 
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      hintText: "Nama aktivitas (misal: Makan Siang)",
+                      filled: true,
+                      fillColor: kSoftBeige,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                      prefixIcon: const Icon(Icons.event_note, color: kMainTeal),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  InkWell(
+                    onTap: () async {
+                      final TimeOfDay? time = await showTimePicker(context: context, initialTime: selectedTime);
+                      if (time != null) {
+                        setModalState(() => selectedTime = time);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.access_time, color: kDarkGrey),
+                          const SizedBox(width: 12),
+                          const Text("Pukul: ", style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            "${selectedTime.hour.toString().padLeft(2,'0')}:${selectedTime.minute.toString().padLeft(2,'0')}",
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kMainTeal),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (activityController.text.isNotEmpty) {
+                          String timeString = "${selectedTime.hour.toString().padLeft(2,'0')}:${selectedTime.minute.toString().padLeft(2,'0')}";
+                          
+                          setState(() {
+                            Map<String, dynamic> newItem = {
+                              "time": timeString,
+                              "activity": activityController.text,
+                              "isDone": indexToEdit != null ? currentList[indexToEdit]['isDone'] : false
+                            };
+
+                            if (indexToEdit != null) {
+                              currentList[indexToEdit] = newItem; 
+                            } else {
+                              currentList.add(newItem);
+                            }
+
+                            currentList.sort((a, b) => a['time'].compareTo(b['time']));
+                            _allSchedules[key] = currentList;
+                          });
+                          _saveSchedules();
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text("SIMPAN"),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        );
+      }
     );
   }
 
-  void _saveSchedule() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString('daily_schedule', jsonEncode(scheduleList));
+  void _deleteSchedule(int index) {
+    String key = _getDateKey(_selectedDate);
+    List<dynamic> currentList = List.from(_allSchedules[key] ?? []);
+    setState(() {
+      currentList.removeAt(index);
+      if (currentList.isEmpty) {
+        _allSchedules.remove(key);
+      } else {
+        _allSchedules[key] = currentList;
+      }
+    });
+    _saveSchedules();
   }
 
   void _toggleSchedule(int index) {
+    String key = _getDateKey(_selectedDate);
+    List<dynamic> currentList = List.from(_allSchedules[key] ?? []);
     setState(() {
-      scheduleList[index]['isDone'] = !scheduleList[index]['isDone'];
+      currentList[index]['isDone'] = !currentList[index]['isDone'];
+      _allSchedules[key] = currentList;
     });
-    _saveSchedule();
+    _saveSchedules();
   }
 
-  void _deleteSchedule(int index) {
+  TimeOfDay _parseTime(String timeStr) {
+    final parts = timeStr.split(":");
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  void _changeDate(int days) {
     setState(() {
-      scheduleList.removeAt(index);
+      _selectedDate = _selectedDate.add(Duration(days: days));
     });
-    _saveSchedule();
+  }
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year && 
+           _selectedDate.month == now.month && 
+           _selectedDate.day == now.day;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Fix Profile Icon: Ambil huruf pertama, handle jika kosong
     String initial = (userName.isNotEmpty) ? userName[0].toUpperCase() : "M";
+    String dateTitle = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(_selectedDate);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            // Header
+            // Header Profil
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Halo, $userName!", style: Theme.of(context).textTheme.bodyLarge),
-                    Text("Apa kabar hari ini?", style: Theme.of(context).textTheme.titleLarge),
+                    Text("Halo, $userName! 👋", style: Theme.of(context).textTheme.bodyLarge),
+                    Text("Tetap Semangat!", style: Theme.of(context).textTheme.titleLarge),
                   ],
                 ),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
                   child: CircleAvatar(
-                    radius: 28,
+                    radius: 26,
                     backgroundColor: kMainTeal,
-                    child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
-            // --- Jadwal Harian (INTERAKTIF) ---
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("Jadwal Hari ini", style: Theme.of(context).textTheme.titleMedium),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle, color: kMainTeal),
-                          onPressed: _addScheduleItem,
-                        )
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // List Jadwal
-                    if (scheduleList.isEmpty)
-                      const Text("Belum ada jadwal.", style: TextStyle(color: Colors.grey)),
-                    
-                    ...scheduleList.asMap().entries.map((entry) {
+            // --- WIDGET JADWAL (FIX OVERFLOW: FITTEDBOX + FONT KECIL) ---
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, color: kMainTeal),
+                        onPressed: () => _changeDate(-1),
+                      ),
+                      
+                      // SOLUSI UTAMA DI SINI:
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              _isToday ? "Jadwal Hari Ini" : "Riwayat Jadwal",
+                              style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            // FittedBox akan mengecilkan teks secara otomatis jika terlalu lebar
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                dateTitle, 
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 14, // Font dikecilkan sedikit dari 16 ke 14
+                                  color: kDarkGrey
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, color: kMainTeal),
+                        onPressed: () => _changeDate(1),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+
+                  if (_currentScheduleList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Column(
+                        children: [
+                          Icon(Icons.calendar_today_outlined, size: 40, color: kMainTeal.withOpacity(0.3)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _isToday ? "Belum ada jadwal.\nYuk tambah kegiatan!" : "Tidak ada jadwal.",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ..._currentScheduleList.asMap().entries.map((entry) {
                       int idx = entry.key;
                       var item = entry.value;
-                      return Dismissible(
-                        key: Key(item['time'] + item['activity']),
-                        direction: DismissDirection.endToStart,
-                        onDismissed: (_) => _deleteSchedule(idx),
-                        background: Container(color: Colors.red, alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20), child: const Icon(Icons.delete, color: Colors.white)),
-                        child: CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            "${item['time']} - ${item['activity']}",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              decoration: item['isDone'] ? TextDecoration.lineThrough : null,
-                              color: item['isDone'] ? Colors.grey : kDarkGrey
+                      bool isDone = item['isDone'] ?? false;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: isDone ? kSoftBeige : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDone ? Colors.transparent : Colors.grey.shade200)
+                        ),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => _toggleSchedule(idx),
+                              child: Container(
+                                width: 24, height: 24,
+                                decoration: BoxDecoration(
+                                  color: isDone ? kMainTeal : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: isDone ? kMainTeal : kIconGrey, width: 2)
+                                ),
+                                child: isDone ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                              ),
                             ),
-                          ),
-                          value: item['isDone'],
-                          activeColor: kMainTeal,
-                          onChanged: (val) => _toggleSchedule(idx),
-                          controlAffinity: ListTileControlAffinity.leading,
+                            const SizedBox(width: 12),
+                            
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item['activity'], 
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold, 
+                                      fontSize: 16,
+                                      decoration: isDone ? TextDecoration.lineThrough : null,
+                                      color: isDone ? Colors.grey : kDarkGrey
+                                    )
+                                  ),
+                                  Text(item['time'], style: const TextStyle(color: kMainTeal, fontSize: 12, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 20, color: Colors.orange),
+                                  onPressed: () => _showScheduleForm(indexToEdit: idx),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                  onPressed: () => _deleteSchedule(idx),
+                                ),
+                              ],
+                            )
+                          ],
                         ),
                       );
-                    }).toList(),
-                  ],
-                ),
+                    }),
+
+                  if (_selectedDate.isAfter(DateTime.now().subtract(const Duration(days: 1))))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showScheduleForm(),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text("Tambah Kegiatan"),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: kMainTeal)
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
 
-            // --- Shortcut ---
             Row(
               children: [
-                Expanded(
-                  child: _shortcutCard(
-                    "Diary Anak", 
-                    Icons.book, 
-                    kAccentCoral, 
-                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiaryScreen()))
-                  )
-                ),
+                Expanded(child: _shortcutCard("Diary Anak", Icons.book, kAccentCoral, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiaryScreen())))),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: _shortcutCard(
-                    "Musik & Relaksasi", 
-                    Icons.music_note, 
-                    kAccentPurple, 
-                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicScreen()))
-                  )
-                ),
+                Expanded(child: _shortcutCard("Musik & Relaksasi", Icons.music_note, kAccentPurple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicScreen())))),
               ],
             ),
             const SizedBox(height: 20),
 
-            // --- Rekomendasi Video (Playable) ---
             Text("Direkomendasikan", style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
-            _videoCard(
-              "Memahami Tantrum", 
-              "Video 5 menit oleh Psikolog", 
-              "u-s5rCzx4bY" // ID YouTube
-            ),
+            _videoCard("Memahami Tantrum", "Video 5 menit oleh Psikolog", "u-s5rCzx4bY"),
           ],
         ),
       ),
@@ -246,17 +440,19 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _shortcutCard(String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Card(
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Icon(icon, size: 36, color: color),
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), textAlign: TextAlign.center),
-            ],
-          ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))]
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kDarkGrey), textAlign: TextAlign.center),
+          ],
         ),
       ),
     );
@@ -265,16 +461,31 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _videoCard(String title, String subtitle, String videoId) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPlayerScreen(videoId: videoId, title: '',))),
-      child: Card(
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: Container(
-            padding: const EdgeInsets.all(10), 
-            decoration: BoxDecoration(color: kMainTeal.withOpacity(0.2), borderRadius: BorderRadius.circular(12)), 
-            child: const Icon(Icons.play_arrow_rounded, color: kMainTeal, size: 30)
-          ),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(subtitle),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))]
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12), 
+              decoration: BoxDecoration(color: kMainTeal.withOpacity(0.15), borderRadius: BorderRadius.circular(16)), 
+              child: const Icon(Icons.play_arrow_rounded, color: kMainTeal, size: 28)
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kDarkGrey)),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

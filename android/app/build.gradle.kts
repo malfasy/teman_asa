@@ -31,9 +31,13 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
+   buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("debug") 
+            
+            // Pastikan ini false agar kode tidak diacak (obfuscated) yang bisa bikin error
+            isMinifyEnabled = false 
+            isShrinkResources = false
         }
     }
 }

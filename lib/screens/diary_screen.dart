@@ -108,6 +108,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
     showDialog(
       context: context, 
       builder: (ctx) => AlertDialog(
+        // --- SOLUSI UTAMA: scrollable: true ---
+        scrollable: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(index != null ? "Edit Catatan" : "Catat Hari Ini"),
         content: Column(
