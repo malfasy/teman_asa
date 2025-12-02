@@ -19,7 +19,7 @@ class _MusicScreenState extends State<MusicScreen> {
 
   final List<Map<String, String>> _playlist = [
     {"title": "White Noise", "file": "sounds/white_noise.mp3", "desc": "Suara statis untuk ketenangan"},
-    {"title": "Hujan Lembut", "file": "sounds/rain.mp3", "desc": "Suara alam untuk relaksasi"},
+    {"title": "Hujan Lembut", "file": "sounds/rain.mp3", "desc": "Suara hujan untuk relaksasi"},
     {"title": "Piano Tidur", "file": "sounds/piano.mp3", "desc": "Melodi lambat pengantar tidur"},
   ];
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:google_generative_ai/google_generative_ai.dart'; // Pake library ini
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teman_asa/theme.dart';
 
@@ -35,15 +35,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
           tabs: const [
             Tab(text: "Cari Fasilitas"),
-            Tab(text: "Tanya AI"),
+            Tab(text: "Chat Asisten"),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: const [
-          NearbySearchTab(), // Tab 1: Pencarian Tanpa API
-          AiChatTab(),       // Tab 2: Gemini AI
+          NearbySearchTab(), // Tab 1: Fasilitas (Maps)
+          AiChatTab(),       // Tab 2: Gemini AI (Gratis)
         ],
       ),
     );
@@ -51,7 +51,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
 }
 
 // ==========================================
-// TAB 1: PENCARIAN TANPA API (REDIRECT ONLY)
+// TAB 1: PENCARIAN TANPA API (TETAP SAMA)
 // ==========================================
 class NearbySearchTab extends StatefulWidget {
   const NearbySearchTab({super.key});
@@ -70,15 +70,13 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
     _determinePosition();
   }
 
-  // 1. Cek GPS & Ambil Alamat (GRATIS, Tanpa API Key)
   Future<void> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Cek GPS nyala/mati
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() {
+      if (mounted) setState(() {
         _currentAddress = "GPS mati. Aktifkan GPS untuk akurasi.";
         _isLoadingLocation = false;
       });
@@ -89,7 +87,7 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() {
+        if (mounted) setState(() {
           _currentAddress = "Izin lokasi ditolak.";
           _isLoadingLocation = false;
         });
@@ -98,43 +96,31 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
     }
 
     try {
-      // Ambil koordinat
       Position position = await Geolocator.getCurrentPosition();
-      
-      // Ubah koordinat jadi alamat (Reverse Geocoding - Gratis dari package geocoding)
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude
-      );
+      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        setState(() {
+        if (mounted) setState(() {
           _currentAddress = "${place.street}, ${place.subLocality}, ${place.locality}";
           _isLoadingLocation = false;
         });
       }
     } catch (e) {
-      setState(() {
+      if (mounted) setState(() {
         _currentAddress = "Gagal mendeteksi alamat.";
         _isLoadingLocation = false;
       });
     }
   }
 
-  // 2. Fungsi Redirect ke Google Maps App
   Future<void> _launchGoogleMapsSearch(String keyword) async {
-    // Membuat URL pencarian Google Maps
-    // Format: https://www.google.com/maps/search/?api=1&query=kata+kunci
     final Uri url = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(keyword)}");
-
     try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Tidak dapat membuka Google Maps")),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tidak dapat membuka Google Maps")));
       }
     }
   }
@@ -144,7 +130,6 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        // --- KARTU LOKASI SAYA ---
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -163,10 +148,7 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
                     const Text("Posisi Anda Sekarang:", style: TextStyle(fontSize: 12, color: kDarkGrey)),
                     const SizedBox(height: 4),
                     _isLoadingLocation 
-                      ? const SizedBox(
-                          height: 15, width: 15, 
-                          child: CircularProgressIndicator(strokeWidth: 2, color: kMainTeal)
-                        )
+                      ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2, color: kMainTeal))
                       : Text(_currentAddress, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   ],
                 ),
@@ -181,54 +163,21 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
             ],
           ),
         ),
-        
         const SizedBox(height: 30),
         const Text("Cari Fasilitas Terdekat", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         const Text("Pilih kategori untuk membuka hasil di Google Maps", style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 20),
-
-        // --- TOMBOL-TOMBOL PENCARIAN ---
-        _buildSearchButton(
-          icon: Icons.local_hospital,
-          color: Colors.redAccent,
-          title: "Klinik Tumbuh Kembang",
-          keyword: "klinik tumbuh kembang anak terdekat",
-        ),
-        _buildSearchButton(
-          icon: Icons.psychology,
-          color: Colors.orange,
-          title: "Psikolog Anak",
-          keyword: "psikolog anak terdekat",
-        ),
-        _buildSearchButton(
-          icon: Icons.record_voice_over,
-          color: Colors.blue,
-          title: "Terapi Wicara",
-          keyword: "terapi wicara terdekat",
-        ),
-        _buildSearchButton(
-          icon: Icons.accessibility_new,
-          color: Colors.green,
-          title: "Terapi Okupasi",
-          keyword: "terapi okupasi anak terdekat",
-        ),
-        _buildSearchButton(
-          icon: Icons.school,
-          color: Colors.purple,
-          title: "Sekolah Luar Biasa (SLB)",
-          keyword: "sekolah luar biasa SLB terdekat",
-        ),
+        _buildSearchButton(icon: Icons.local_hospital, color: Colors.redAccent, title: "Klinik Tumbuh Kembang", keyword: "klinik tumbuh kembang anak terdekat"),
+        _buildSearchButton(icon: Icons.psychology, color: Colors.orange, title: "Psikolog Anak", keyword: "psikolog anak terdekat"),
+        _buildSearchButton(icon: Icons.record_voice_over, color: Colors.blue, title: "Terapi Wicara", keyword: "terapi wicara terdekat"),
+        _buildSearchButton(icon: Icons.accessibility_new, color: Colors.green, title: "Terapi Okupasi", keyword: "terapi okupasi anak terdekat"),
+        _buildSearchButton(icon: Icons.school, color: Colors.purple, title: "Sekolah Luar Biasa (SLB)", keyword: "sekolah luar biasa SLB terdekat"),
       ],
     );
   }
 
-  Widget _buildSearchButton({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String keyword,
-  }) {
+  Widget _buildSearchButton({required IconData icon, required Color color, required String title, required String keyword}) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -242,19 +191,11 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
                 child: Icon(icon, color: color, size: 28),
               ),
               const SizedBox(width: 20),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kDarkGrey),
-                ),
-              ),
+              Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kDarkGrey))),
               const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
             ],
           ),
@@ -265,7 +206,7 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
 }
 
 // ==========================================
-// TAB 2: CHAT AI ASSISTANT (GEMINI)
+// TAB 2: CHAT AI (MENGGUNAKAN GOOGLE GEMINI)
 // ==========================================
 class AiChatTab extends StatefulWidget {
   const AiChatTab({super.key});
@@ -275,7 +216,7 @@ class AiChatTab extends StatefulWidget {
 }
 
 class _AiChatTabState extends State<AiChatTab> {
-  // API KEY GEMINI (Tetap Pakai API Key Sendiri untuk AI)
+  // === GANTI DENGAN API KEY DARI GOOGLE AI STUDIO (GRATIS) ===
   static const String _geminiApiKey = 'AIzaSyB8S6Ouywt7kqbmNWkgMSCWXUKYnmMfJJA'; 
   
   late final GenerativeModel _model;
@@ -283,35 +224,52 @@ class _AiChatTabState extends State<AiChatTab> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
+  // Menyimpan pesan dalam format UI kita
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
+  bool _isModelInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    if (_geminiApiKey.isNotEmpty) {
-      _model = GenerativeModel(model: 'gemini-pro', apiKey: _geminiApiKey);
-      _chat = _model.startChat();
-    }
-    _loadUserNameAndGreet();
+    _initializeGemini();
   }
 
-  Future<void> _loadUserNameAndGreet() async {
-    final prefs = await SharedPreferences.getInstance();
-    String userName = prefs.getString('userName') ?? "Bunda";
-    if (mounted) {
+  Future<void> _initializeGemini() async {
+    // Cek apakah API Key sudah diisi
+    if (_geminiApiKey == 'AIzaSyB8S6Ouywt7kqbmNWkgMSCWXUKYnmMfJJA' || _geminiApiKey.isEmpty) {
+      return;
+    }
+
+    try {
+      _model = GenerativeModel(
+        model: 'gemini-pro', 
+        apiKey: _geminiApiKey,
+      );
+      _chat = _model.startChat();
+      
+      final prefs = await SharedPreferences.getInstance();
+      String userName = prefs.getString('userName') ?? "Bunda";
+
       setState(() {
+        _isModelInitialized = true;
         _messages.add({
           "role": "model",
-          "text": "Halo $userName! Saya asisten TemanAsa. Silakan tanya apa saja seputar pengasuhan anak, terapi, atau kesehatan mental."
+          "text": "Halo $userName! Saya asisten TemanAsa. Ada yang bisa saya bantu?"
         });
       });
+    } catch (e) {
+      debugPrint("Error Init Gemini: $e");
     }
   }
 
   Future<void> _sendMessage() async {
     final message = _textController.text;
-    if (message.isEmpty) return;
+    if (message.trim().isEmpty) return;
+    if (!_isModelInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("API Key belum diisi atau inisialisasi gagal.")));
+      return;
+    }
 
     setState(() {
       _messages.add({"role": "user", "text": message});
@@ -334,7 +292,7 @@ class _AiChatTabState extends State<AiChatTab> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add({"role": "model", "text": "Maaf, terjadi kesalahan koneksi. Coba lagi nanti ya."});
+          _messages.add({"role": "model", "text": "Maaf, terjadi kesalahan: $e"});
           _isLoading = false;
         });
       }
@@ -355,6 +313,42 @@ class _AiChatTabState extends State<AiChatTab> {
 
   @override
   Widget build(BuildContext context) {
+    // Tampilan jika API Key belum diisi
+    if (!_isModelInitialized && (_geminiApiKey == 'AIzaSyB8S6Ouywt7kqbmNWkgMSCWXUKYnmMfJJA' || _geminiApiKey.isEmpty)) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.vpn_key_off, size: 60, color: Colors.orange),
+              const SizedBox(height: 20),
+              const Text(
+                "API Key Belum Diatur",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Silakan masukkan API Key Google Gemini (Gratis) di kode discover_screen.dart",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () async {
+                   final Uri url = Uri.parse("https://aistudio.google.com/app/apikey");
+                   if (!await launchUrl(url)) {
+                     // handle error
+                   }
+                },
+                child: const Text("Dapatkan API Key di Sini"),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
         Expanded(
@@ -393,7 +387,7 @@ class _AiChatTabState extends State<AiChatTab> {
         if (_isLoading)
           const Padding(
             padding: EdgeInsets.all(8.0),
-            child: LinearProgressIndicator(color: kMainTeal),
+            child: LinearProgressIndicator(color: kMainTeal, minHeight: 2),
           ),
         Container(
           padding: const EdgeInsets.all(16),

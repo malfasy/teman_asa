@@ -250,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Halo, $userName! 👋", style: Theme.of(context).textTheme.bodyLarge),
+                    Text("Halo, $userName! ", style: Theme.of(context).textTheme.bodyLarge),
                     Text("Tetap Semangat!", style: Theme.of(context).textTheme.titleLarge),
                   ],
                 ),
@@ -430,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             Text("Direkomendasikan", style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
-            _videoCard("Memahami Tantrum", "Video 5 menit oleh Psikolog", "u-s5rCzx4bY"),
+            _videoCard("Mengatasi Tantrum", "Tips praktis saat anak tantrum", "Nf5GlbRkRys"),
           ],
         ),
       ),

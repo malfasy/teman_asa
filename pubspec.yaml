@@ -11,7 +11,8 @@ dependencies:
     sdk: flutter
   
   intl: ^0.20.2
-
+  flutter_markdown: ^0.7.4
+  
   # Ikon & Font
   cupertino_icons: ^1.0.2
   google_fonts: ^6.2.1
@@ -28,10 +29,10 @@ dependencies:
   firebase_core: ^4.2.1
   firebase_auth: ^6.1.2
   google_sign_in: 6.2.1
+  google_generative_ai: ^0.4.6
 
   geolocator: ^14.0.2         # Untuk tahu lokasi GPS HP
   url_launcher: ^6.3.1        # Untuk buka Google Maps
-  google_generative_ai: ^0.4.6
   geocoding: ^4.0.0
   http: ^1.6.0
 
@@ -39,6 +40,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -60,3 +62,8 @@ flutter:
     - family: NerkoOne
       fonts:
         - asset: assets/fonts/NerkoOne-Regular.ttf
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.png"

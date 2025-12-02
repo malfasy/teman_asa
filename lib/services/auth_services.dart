@@ -1,13 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // --- 1. Daftar dengan Email & Password ---
-  Future<UserCredential?> signUpWithEmailAndPassword(String email, String password) async {
+  // 1. Sign Up (Email & Password)
+  Future<UserCredential> signUpWithEmailAndPassword(String email, String password) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -16,13 +17,15 @@ class AuthService {
       await _saveLoginStatus();
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      print("Error SignUp: ${e.message}");
-      return null;
+      // Lempar error spesifik agar bisa ditangkap UI
+      throw Exception(_getFriendlyErrorMessage(e.code));
+    } catch (e) {
+      throw Exception("Terjadi kesalahan: $e");
     }
   }
 
-  // --- 2. Login dengan Email & Password ---
-  Future<UserCredential?> signInWithEmailAndPassword(String email, String password) async {
+  // 2. Sign In (Email & Password)
+  Future<UserCredential> signInWithEmailAndPassword(String email, String password) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -31,16 +34,17 @@ class AuthService {
       await _saveLoginStatus();
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      print("Error SignIn: ${e.message}");
-      return null;
+      throw Exception(_getFriendlyErrorMessage(e.code));
+    } catch (e) {
+      throw Exception("Gagal Login: $e");
     }
   }
 
-  // --- 3. Login dengan Google ---
+  // 3. Sign In (Google)
   Future<UserCredential?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+      if (googleUser == null) return null; // User batal login
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
@@ -51,13 +55,16 @@ class AuthService {
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
       await _saveLoginStatus();
       return userCredential;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message);
+    } on PlatformException catch (e) {
+      throw Exception("Google Sign In Error: ${e.message}");
     } catch (e) {
-      print("Error Google Sign In: $e");
-      return null;
+      throw Exception("Error: $e");
     }
   }
 
-  // --- 4. Logout ---
+  // 4. Logout
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
@@ -65,9 +72,21 @@ class AuthService {
     await prefs.setBool('isLoggedIn', false);
   }
 
-  // Simpan status login
   Future<void> _saveLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
+  }
+
+  // Helper pesan error bahasa Indonesia
+  String _getFriendlyErrorMessage(String code) {
+    switch (code) {
+      case 'email-already-in-use': return 'Email ini sudah terdaftar.';
+      case 'invalid-email': return 'Format email salah.';
+      case 'weak-password': return 'Password terlalu lemah.';
+      case 'user-not-found': return 'Email tidak ditemukan.';
+      case 'wrong-password': return 'Password salah.';
+      case 'user-disabled': return 'Akun ini telah dinonaktifkan.';
+      default: return 'Terjadi kesalahan ($code). Coba lagi.';
+    }
   }
 }
