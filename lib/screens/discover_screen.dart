@@ -43,17 +43,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       body: TabBarView(
         controller: _tabController,
         children: const [
-          NearbySearchTab(), // Tab 1: Peta (Tetap Sama)
-          OfflineChatTab(),  // Tab 2: Chatbot Offline (BARU)
+          NearbySearchTab(), 
+          OfflineChatTab(), 
         ],
       ),
     );
   }
 }
 
-// ==========================================
-// TAB 1: PENCARIAN (TETAP SAMA)
-// ==========================================
 class NearbySearchTab extends StatefulWidget {
   const NearbySearchTab({super.key});
 

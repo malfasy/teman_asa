@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart'; 
+import 'package:intl/date_symbol_data_local.dart'; 
 import 'package:teman_asa/screens/diary_screen.dart';
 import 'package:teman_asa/screens/music_screen.dart';
+import 'package:teman_asa/screens/video_player_screen.dart';
 import 'package:teman_asa/screens/profile_screen.dart';
+import 'package:teman_asa/screens/behavior_analytics_screen.dart';
 import 'package:teman_asa/theme.dart';
-import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,31 +20,27 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String userName = "Bunda";
   
-  // --- VARIABEL JADWAL ---
-  List<Map<String, dynamic>> scheduleList = [];
-  DateTime selectedDate = DateTime.now(); // Tanggal yang sedang dilihat
+  // --- STATE JADWAL ---
+  Map<String, List<dynamic>> _allSchedules = {};
+  DateTime _selectedDate = DateTime.now();
 
-  // --- VARIABEL ANALISIS ---
-  Map<String, int> moodCounts = {
-    "Senang": 0, "Sedih": 0, "Marah": 0, 
-    "Tantrum": 0, "Tenang": 0, "Cemas": 0,
-  };
-  int totalLogs = 0;
-  String dominantMood = "-";
+  // --- STATE ANALISIS RINGKAS ---
+  List<dynamic> _behaviorLogs = [];
 
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('id_ID', null); 
     _loadUserData();
-    _loadSchedule(); // Load jadwal sesuai tanggal (hari ini)
-    _loadDiaryAnalysis();
+    _loadSchedules();
+    _loadBehaviorLogs();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadUserData();
-    _loadDiaryAnalysis();
+  // Fungsi untuk refresh data saat kembali dari halaman lain
+  void _refreshData() {
+    _loadSchedules();
+    _loadBehaviorLogs();
+    setState(() {});
   }
 
   void _loadUserData() async {
@@ -51,208 +50,231 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  String get _scheduleKey {
-    return 'daily_schedule_${DateFormat('yyyy-MM-dd').format(selectedDate)}';
+  void _loadSchedules() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? dataString = prefs.getString('schedule_history');
+    if (dataString != null) {
+      setState(() {
+        _allSchedules = Map<String, List<dynamic>>.from(jsonDecode(dataString));
+      });
+    }
+  }
+
+  void _loadBehaviorLogs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? logsString = prefs.getString('behavior_logs');
+    if (logsString != null) {
+      setState(() {
+        _behaviorLogs = jsonDecode(logsString);
+      });
+    }
+  }
+
+  void _saveSchedules() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('schedule_history', jsonEncode(_allSchedules));
+  }
+
+  String _getDateKey(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  List<dynamic> get _currentScheduleList {
+    String key = _getDateKey(_selectedDate);
+    return _allSchedules[key] ?? [];
+  }
+  
+  // --- FORM JADWAL (DIPERBAIKI) ---
+  void _showScheduleForm({int? indexToEdit}) {
+    String key = _getDateKey(_selectedDate);
+    List<dynamic> currentList = List.from(_allSchedules[key] ?? []);
+
+    // Default time & text
+    TimeOfDay selectedTime = indexToEdit != null 
+        ? _parseTime(currentList[indexToEdit]['time']) 
+        : TimeOfDay.now();
+    
+    TextEditingController activityController = TextEditingController(
+        text: indexToEdit != null ? currentList[indexToEdit]['activity'] : ""
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Supaya bisa full height jika keyboard muncul
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20, // Handle Keyboard
+                left: 20,
+                right: 20,
+                top: 20
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 50, height: 5,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  
+                  Text(
+                    indexToEdit != null ? "Edit Jadwal" : "Tambah Kegiatan Baru",
+                    style: Theme.of(context).textTheme.titleMedium
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Input Nama Aktivitas
+                  TextField(
+                    controller: activityController,
+                    autofocus: true, 
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      hintText: "Nama aktivitas (misal: Makan Siang)",
+                      filled: true,
+                      fillColor: kSoftBeige,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                      prefixIcon: const Icon(Icons.event_note, color: kMainTeal),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Input Waktu
+                  InkWell(
+                    onTap: () async {
+                      final TimeOfDay? time = await showTimePicker(context: context, initialTime: selectedTime);
+                      if (time != null) {
+                        setModalState(() => selectedTime = time);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.access_time, color: kDarkGrey),
+                          const SizedBox(width: 12),
+                          const Text("Pukul: ", style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            "${selectedTime.hour.toString().padLeft(2,'0')}:${selectedTime.minute.toString().padLeft(2,'0')}",
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kMainTeal),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Tombol Simpan
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (activityController.text.isNotEmpty) {
+                          String timeString = "${selectedTime.hour.toString().padLeft(2,'0')}:${selectedTime.minute.toString().padLeft(2,'0')}";
+                          
+                          // Panggil setState milik HomeScreen (bukan modal)
+                          this.setState(() {
+                            Map<String, dynamic> newItem = {
+                              "time": timeString,
+                              "activity": activityController.text,
+                              "isDone": indexToEdit != null ? currentList[indexToEdit]['isDone'] : false
+                            };
+
+                            if (indexToEdit != null) {
+                              currentList[indexToEdit] = newItem; 
+                            } else {
+                              currentList.add(newItem);
+                            }
+
+                            // Sort berdasarkan waktu
+                            currentList.sort((a, b) => a['time'].compareTo(b['time']));
+                            _allSchedules[key] = currentList;
+                          });
+                          
+                          _saveSchedules();
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text("SIMPAN"),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+  void _deleteSchedule(int index) {
+    String key = _getDateKey(_selectedDate);
+    List<dynamic> currentList = List.from(_allSchedules[key] ?? []);
+    setState(() {
+      currentList.removeAt(index);
+      if (currentList.isEmpty) {
+        _allSchedules.remove(key);
+      } else {
+        _allSchedules[key] = currentList;
+      }
+    });
+    _saveSchedules();
+  }
+
+  void _toggleSchedule(int index) {
+    String key = _getDateKey(_selectedDate);
+    List<dynamic> currentList = List.from(_allSchedules[key] ?? []);
+    setState(() {
+      currentList[index]['isDone'] = !currentList[index]['isDone'];
+      _allSchedules[key] = currentList;
+    });
+    _saveSchedules();
+  }
+
+  TimeOfDay _parseTime(String timeStr) {
+    final parts = timeStr.split(":");
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  void _changeDate(int days) {
+    setState(() {
+      _selectedDate = _selectedDate.add(Duration(days: days));
+    });
   }
 
   bool get _isToday {
     final now = DateTime.now();
-    return selectedDate.year == now.year && 
-           selectedDate.month == now.month && 
-           selectedDate.day == now.day;
-  }
-
-  void _loadSchedule() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? scheduleString = prefs.getString(_scheduleKey);
-    
-    setState(() {
-      if (scheduleString != null) {
-        scheduleList = List<Map<String, dynamic>>.from(jsonDecode(scheduleString));
-      } else {
-      
-        if (_isToday) {
-          scheduleList = [
-            {"time": "07:00", "activity": "Mandi Pagi", "isDone": false},
-            {"time": "08:00", "activity": "Sarapan", "isDone": false},
-          ];
-        } else {
-          scheduleList = [];
-        }
-      }
-    });
-  }
-
-  void _saveSchedule() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString(_scheduleKey, jsonEncode(scheduleList));
-  }
-
-  // Ganti Hari (Prev/Next)
-  void _changeDate(int days) {
-    DateTime newDate = selectedDate.add(Duration(days: days));
-    // Cegah pindah ke masa depan (besok dst)
-    if (newDate.isAfter(DateTime.now())) return;
-
-    setState(() {
-      selectedDate = newDate;
-    });
-    _loadSchedule(); // Reload data sesuai tanggal baru
-  }
-
-  // Pilih Tanggal dari Kalender
-  void _pickDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2020), // Bisa lihat sampai tahun 2020
-      lastDate: DateTime.now(),  // Maksimal hari ini
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: kMainTeal),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != selectedDate) {
-      setState(() {
-        selectedDate = picked;
-      });
-      _loadSchedule();
-    }
-  }
-
-  // Tambah atau Edit Item Jadwal
-  void _showScheduleDialog({int? index}) {
-    TimeOfDay initialTime = TimeOfDay.now();
-    TextEditingController activityController = TextEditingController();
-
-    // Jika Edit (index tidak null), isi data lama
-    if (index != null) {
-      activityController.text = scheduleList[index]['activity'];
-      // Parse jam lama "HH:mm"
-      final parts = scheduleList[index]['time'].split(':');
-      initialTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-    }
-
-    TimeOfDay selectedTime = initialTime;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder( // StatefulBuilder agar jam bisa update di dialog
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(index == null ? "Tambah Jadwal" : "Edit Jadwal"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: activityController,
-                  decoration: const InputDecoration(hintText: "Nama Aktivitas"),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Text("Jam: "),
-                    TextButton(
-                      onPressed: () async {
-                        final TimeOfDay? time = await showTimePicker(context: context, initialTime: selectedTime);
-                        if (time != null) {
-                          setDialogState(() => selectedTime = time);
-                        }
-                      },
-                      child: Text(
-                        selectedTime.format(context),
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: kMainTeal, fontSize: 16),
-                      ),
-                    ),
-                  ],
-                )
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
-              ElevatedButton(
-                onPressed: () {
-                  if (activityController.text.isNotEmpty) {
-                    final timeString = "${selectedTime.hour.toString().padLeft(2,'0')}:${selectedTime.minute.toString().padLeft(2,'0')}";
-                    
-                    setState(() {
-                      if (index == null) {
-                        // TAMBAH BARU
-                        scheduleList.add({
-                          "time": timeString,
-                          "activity": activityController.text,
-                          "isDone": false
-                        });
-                      } else {
-                        // UPDATE LAMA
-                        scheduleList[index]['time'] = timeString;
-                        scheduleList[index]['activity'] = activityController.text;
-                      }
-                      // Sort ulang biar urut jam
-                      scheduleList.sort((a, b) => a['time'].compareTo(b['time']));
-                    });
-                    _saveSchedule();
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text("Simpan"),
-              )
-            ],
-          );
-        }
-      ),
-    );
-  }
-
-  void _toggleSchedule(int index) {
-    setState(() {
-      scheduleList[index]['isDone'] = !scheduleList[index]['isDone'];
-    });
-    _saveSchedule();
-  }
-
-  void _deleteSchedule(int index) {
-    setState(() {
-      scheduleList.removeAt(index);
-    });
-    _saveSchedule();
-  }
-
-  // --- LOGIKA ANALISIS (SAMA SEPERTI SEBELUMNYA) ---
-  void _loadDiaryAnalysis() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? data = prefs.getString('user_diaries');
-    if (data != null) {
-      List<dynamic> diaries = jsonDecode(data);
-      Map<String, int> counts = { "Senang": 0, "Sedih": 0, "Marah": 0, "Tantrum": 0, "Tenang": 0, "Cemas": 0 };
-      for (var item in diaries) {
-        String mood = item['mood'] ?? "Senang";
-        if (counts.containsKey(mood)) counts[mood] = (counts[mood] ?? 0) + 1;
-      }
-      String dom = "-";
-      int maxVal = 0;
-      counts.forEach((k, v) { if (v > maxVal) { maxVal = v; dom = k; } });
-
-      if (mounted) {
-        setState(() { moodCounts = counts; totalLogs = diaries.length; dominantMood = totalLogs > 0 ? dom : "-"; });
-      }
-    }
+    return _selectedDate.year == now.year && 
+           _selectedDate.month == now.month && 
+           _selectedDate.day == now.day;
   }
 
   @override
   Widget build(BuildContext context) {
     String initial = (userName.isNotEmpty) ? userName[0].toUpperCase() : "M";
+    String dateTitle = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(_selectedDate);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            // --- HEADER ---
+            // HEADER PROFIL
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -264,279 +286,346 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())).then((_) => _loadUserData()),
+                  onTap: () async {
+                    await Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                    _loadUserData(); // Reload nama jika berubah
+                  },
                   child: CircleAvatar(
-                    radius: 28,
+                    radius: 26,
                     backgroundColor: kMainTeal,
-                    child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
-            // --- SHORTCUTS ---
-            Row(
-              children: [
-                Expanded(
-                  child: _shortcutCard(
-                    "Diary Anak", Icons.book, kAccentCoral, 
-                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiaryScreen())).then((_) => _loadDiaryAnalysis())
-                  )
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _shortcutCard(
-                    "Musik & Relaksasi", Icons.music_note, kAccentPurple, 
-                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicScreen()))
-                  )
-                ),
-              ],
-            ),
+            // --- WIDGET GRAFIK RINGKAS (REAL DATA) ---
+            _buildSummaryGraph(),
+            
             const SizedBox(height: 24),
 
-            // --- JADWAL HARIAN (DENGAN NAVIGASI TANGGAL) ---
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("Jadwal Visual", style: Theme.of(context).textTheme.titleMedium),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle, color: kMainTeal, size: 28),
-                          onPressed: () => _showScheduleDialog(),
-                        )
-                      ],
-                    ),
-                    const Divider(),
-                    
-                    // NAVIGASI TANGGAL (BARU)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_ios, size: 18, color: kIconGrey),
-                          onPressed: () => _changeDate(-1), // Mundur 1 hari
-                        ),
-                        GestureDetector(
-                          onTap: _pickDate, // Klik tanggal buat buka kalender
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today, size: 16, color: kMainTeal),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isToday 
-                                  ? "Hari Ini, ${DateFormat('d MMM').format(selectedDate)}"
-                                  : DateFormat('EEEE, d MMM yyyy', 'id_ID').format(selectedDate), // Perlu locale ID kalau mau nama hari Indo, atau default English
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: kDarkGrey),
+            // --- WIDGET JADWAL HARIAN ---
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, color: kMainTeal),
+                        onPressed: () => _changeDate(-1),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              _isToday ? "Jadwal Hari Ini" : "Riwayat Jadwal",
+                              style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                dateTitle, 
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kDarkGrey),
+                                textAlign: TextAlign.center,
                               ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.arrow_forward_ios, size: 18),
-                          // Disable jika hari ini (cegah ke masa depan)
-                          onPressed: _isToday ? null : () => _changeDate(1), 
-                          color: _isToday ? Colors.grey.withOpacity(0.3) : kIconGrey,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    
-                    // LIST JADWAL
-                    if (scheduleList.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Center(
-                          child: Text(
-                            _isToday ? "Belum ada jadwal hari ini." : "Tidak ada jadwal pada tanggal ini.", 
-                            style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)
-                          )
+                            ),
+                          ],
                         ),
                       ),
-                    
-                    ...scheduleList.asMap().entries.map((entry) {
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, color: kMainTeal),
+                        onPressed: () => _changeDate(1),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+
+                  if (_currentScheduleList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Column(
+                        children: [
+                          Icon(Icons.calendar_today_outlined, size: 40, color: kMainTeal.withOpacity(0.3)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _isToday ? "Belum ada jadwal.\nYuk tambah kegiatan!" : "Tidak ada jadwal.",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ..._currentScheduleList.asMap().entries.map((entry) {
                       int idx = entry.key;
                       var item = entry.value;
-                      return Dismissible(
-                        key: Key("${item['time']}_${item['activity']}_$idx"), // Key unik
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (direction) async {
-                           // Konfirmasi hapus
-                           return await showDialog(
-                             context: context,
-                             builder: (ctx) => AlertDialog(
-                               title: const Text("Hapus Jadwal?"),
-                               actions: [
-                                 TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Batal")),
-                                 TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Hapus", style: TextStyle(color: Colors.red))),
-                               ],
-                             )
-                           );
-                        },
-                        onDismissed: (_) => _deleteSchedule(idx),
-                        background: Container(
-                          alignment: Alignment.centerRight, 
-                          padding: const EdgeInsets.only(right: 20), 
-                          decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(12)),
-                          child: const Icon(Icons.delete, color: Colors.white)
+                      bool isDone = item['isDone'] ?? false;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: isDone ? kSoftBeige : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDone ? Colors.transparent : Colors.grey.shade200)
                         ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Checkbox(
-                            value: item['isDone'],
-                            activeColor: kMainTeal,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            onChanged: (val) => _toggleSchedule(idx),
-                          ),
-                          title: Text(
-                            "${item['time']} - ${item['activity']}",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              decoration: item['isDone'] ? TextDecoration.lineThrough : null,
-                              color: item['isDone'] ? Colors.grey : kDarkGrey
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => _toggleSchedule(idx),
+                              child: Container(
+                                width: 24, height: 24,
+                                decoration: BoxDecoration(
+                                  color: isDone ? kMainTeal : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: isDone ? kMainTeal : kIconGrey, width: 2)
+                                ),
+                                child: isDone ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                              ),
                             ),
-                          ),
-                          // Tombol Edit
-                          trailing: IconButton(
-                            icon: const Icon(Icons.edit, size: 18, color: kIconGrey),
-                            onPressed: () => _showScheduleDialog(index: idx),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item['activity'], 
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold, 
+                                      fontSize: 16,
+                                      decoration: isDone ? TextDecoration.lineThrough : null,
+                                      color: isDone ? Colors.grey : kDarkGrey
+                                    )
+                                  ),
+                                  Text(item['time'], style: const TextStyle(color: kMainTeal, fontSize: 12, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 20, color: Colors.orange),
+                              onPressed: () => _showScheduleForm(indexToEdit: idx),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                              onPressed: () => _deleteSchedule(idx),
+                            ),
+                          ],
                         ),
                       );
-                    }).toList(),
-                  ],
-                ),
+                    }),
+
+                  if (_selectedDate.isAfter(DateTime.now().subtract(const Duration(days: 1))))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showScheduleForm(),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text("Tambah Kegiatan"),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: kMainTeal)
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
 
-  // --- WIDGET GRAFIK ---
-  Widget _buildAnalysisCard() {
-    if (totalLogs == 0) {
-      return Card(
-        elevation: 2,
-        color: kMainTeal.withOpacity(0.05),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(Icons.bar_chart_rounded, size: 48, color: kMainTeal.withOpacity(0.5)),
-                const SizedBox(height: 12),
-                const Text(
-                  "Belum ada data perilaku.",
-                  style: TextStyle(fontWeight: FontWeight.bold, color: kDarkGrey),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  "Catat mood anak di Diary untuk melihat grafik perkembangan.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+            // SHORTCUTS
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Mood Dominan", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(dominantMood, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _getMoodColor(dominantMood))),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: kMainTeal.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                  child: Text("$totalLogs Catatan", style: const TextStyle(color: kMainTeal, fontWeight: FontWeight.bold, fontSize: 12)),
-                ),
+                Expanded(child: _shortcutCard("Logbook Perilaku", Icons.menu_book_rounded, kAccentCoral, () async {
+                   await Navigator.push(context, MaterialPageRoute(builder: (_) => const DiaryScreen()));
+                   _refreshData();
+                })),
+                const SizedBox(width: 16),
+                Expanded(child: _shortcutCard("Musik & Relaksasi", Icons.music_note, kAccentPurple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicScreen())))),
               ],
             ),
-            const Divider(height: 24),
-            
-            SizedBox(
-              height: 120,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: moodCounts.entries.map((entry) {
-                  double percentage = totalLogs > 0 ? (entry.value / totalLogs) : 0;
-                  double barHeight = percentage * 100; 
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 500),
-                        width: 14,
-                        height: barHeight < 5 && entry.value > 0 ? 5 : barHeight,
-                        decoration: BoxDecoration(color: _getMoodColor(entry.key), borderRadius: BorderRadius.circular(4)),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(entry.key.substring(0, 3), style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
+            const SizedBox(height: 20),
+
+            Text("Direkomendasikan", style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            _videoCard("Mengatasi Tantrum", "Tips praktis saat anak tantrum.", "Nf5GlbRkRys"),
           ],
         ),
       ),
     );
   }
 
-  Color _getMoodColor(String mood) {
-    switch (mood) {
-      case "Marah": return Colors.red;
-      case "Tantrum": return Colors.redAccent;
-      case "Sedih": return Colors.orange;
-      case "Cemas": return Colors.amber;
-      case "Senang": return Colors.green;
-      case "Tenang": return kMainTeal;
-      default: return Colors.grey;
+  // --- WIDGET GRAFIK RINGKAS (7 HARI TERAKHIR) ---
+  Widget _buildSummaryGraph() {
+    // 1. Siapkan Data 7 Hari Terakhir
+    DateTime now = DateTime.now();
+    List<int> dailyCounts = List.filled(7, 0); 
+    List<DateTime> last7Days = List.generate(7, (i) => now.subtract(Duration(days: 6 - i)));
+
+    // 2. Hitung kejadian dari log
+    for (var log in _behaviorLogs) {
+      try {
+        DateTime logDate = DateTime.parse(log['date']);
+        for (int i = 0; i < 7; i++) {
+          if (logDate.year == last7Days[i].year && 
+              logDate.month == last7Days[i].month && 
+              logDate.day == last7Days[i].day) {
+            dailyCounts[i]++;
+          }
+        }
+      } catch (e) {
+        // Ignore parsing error
+      }
     }
+
+    int maxCount = dailyCounts.reduce((curr, next) => curr > next ? curr : next);
+    if (maxCount == 0) maxCount = 1;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [kMainTeal, kMainTeal.withOpacity(0.8)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: kMainTeal.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))]
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Insight Minggu Ini", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text("Frekuensi Perilaku", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ],
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                   await Navigator.push(context, MaterialPageRoute(builder: (_) => const BehaviorAnalyticsScreen()));
+                   _refreshData();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: kMainTeal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  minimumSize: const Size(0, 36)
+                ),
+                child: const Text("Lihat Detail", style: TextStyle(fontSize: 12)),
+              )
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          // Chart Bar
+          SizedBox(
+            height: 130, // <--- DIPERBESAR (Sebelumnya 100)
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(7, (index) {
+                int count = dailyCounts[index];
+                double maxBarHeight = 70; // <--- TINGGI BATANG MAKSIMAL
+                double barHeight = (count / maxCount) * maxBarHeight; 
+                
+                String dayName = DateFormat('E', 'id_ID').format(last7Days[index]);
+                bool isToday = index == 6;
+
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Label Angka (Hanya muncul jika > 0)
+                    if (count > 0) 
+                      Text(count.toString(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                    
+                    const SizedBox(height: 4), // Jarak teks ke batang
+                    
+                    // Batang Grafik
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 500),
+                      width: 12,
+                      height: barHeight > 5 ? barHeight : 5, // Minimal 5px biar kelihatan
+                      decoration: BoxDecoration(
+                        color: isToday ? kAccentYellow : Colors.white.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 8), // Jarak batang ke hari
+                    
+                    // Label Hari
+                    Text(dayName, style: TextStyle(fontSize: 10, color: isToday ? Colors.white : Colors.white70, fontWeight: isToday ? FontWeight.bold : FontWeight.normal)),
+                  ],
+                );
+              }),
+            ),
+          )
+        ],
+      ),
+    );
   }
 
   Widget _shortcutCard(String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          child: Column(
-            children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 12),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), textAlign: TextAlign.center),
-            ],
-          ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))]
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kDarkGrey), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _videoCard(String title, String subtitle, String videoId) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPlayerScreen(videoId: videoId, title: '',))),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))]
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12), 
+              decoration: BoxDecoration(color: kMainTeal.withOpacity(0.15), borderRadius: BorderRadius.circular(16)), 
+              child: const Icon(Icons.play_arrow_rounded, color: kMainTeal, size: 28)
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kDarkGrey)),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
