@@ -1,8 +1,8 @@
+import 'dart:async'; // Untuk simulasi "sedang mengetik"
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:google_generative_ai/google_generative_ai.dart'; // Pake library ini
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teman_asa/theme.dart';
 
@@ -27,6 +27,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     return Scaffold(
       appBar: AppBar(
         title: const Text("Discover"),
+        centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
           labelColor: kMainTeal,
@@ -35,15 +36,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
           tabs: const [
             Tab(text: "Cari Fasilitas"),
-            Tab(text: "Chat Asisten"),
+            Tab(text: "Asisten Asa"),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: const [
-          NearbySearchTab(), // Tab 1: Fasilitas (Maps)
-          AiChatTab(),       // Tab 2: Gemini AI (Gratis)
+          NearbySearchTab(), // Tab 1: Peta (Tetap Sama)
+          OfflineChatTab(),  // Tab 2: Chatbot Offline (BARU)
         ],
       ),
     );
@@ -51,7 +52,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
 }
 
 // ==========================================
-// TAB 1: PENCARIAN TANPA API (TETAP SAMA)
+// TAB 1: PENCARIAN (TETAP SAMA)
 // ==========================================
 class NearbySearchTab extends StatefulWidget {
   const NearbySearchTab({super.key});
@@ -71,26 +72,17 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
   }
 
   Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) setState(() {
-        _currentAddress = "GPS mati. Aktifkan GPS untuk akurasi.";
-        _isLoadingLocation = false;
-      });
+      if(mounted) setState(() { _currentAddress = "GPS mati."; _isLoadingLocation = false; });
       return;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if (mounted) setState(() {
-          _currentAddress = "Izin lokasi ditolak.";
-          _isLoadingLocation = false;
-        });
+        if(mounted) setState(() { _currentAddress = "Izin ditolak."; _isLoadingLocation = false; });
         return;
       }
     }
@@ -98,31 +90,18 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
     try {
       Position position = await Geolocator.getCurrentPosition();
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        if (mounted) setState(() {
-          _currentAddress = "${place.street}, ${place.subLocality}, ${place.locality}";
-          _isLoadingLocation = false;
-        });
+        if(mounted) setState(() { _currentAddress = "${place.street}, ${place.subLocality}"; _isLoadingLocation = false; });
       }
     } catch (e) {
-      if (mounted) setState(() {
-        _currentAddress = "Gagal mendeteksi alamat.";
-        _isLoadingLocation = false;
-      });
+      if(mounted) setState(() { _currentAddress = "Gagal deteksi."; _isLoadingLocation = false; });
     }
   }
 
   Future<void> _launchGoogleMapsSearch(String keyword) async {
     final Uri url = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(keyword)}");
-    try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tidak dapat membuka Google Maps")));
-      }
-    }
+    try { await launchUrl(url, mode: LaunchMode.externalApplication); } catch (_) {}
   }
 
   @override
@@ -132,171 +111,131 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
       children: [
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: kMainTeal.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kMainTeal.withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.my_location, color: kMainTeal, size: 30),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Posisi Anda Sekarang:", style: TextStyle(fontSize: 12, color: kDarkGrey)),
-                    const SizedBox(height: 4),
-                    _isLoadingLocation 
-                      ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2, color: kMainTeal))
-                      : Text(_currentAddress, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: kMainTeal),
-                onPressed: () {
-                  setState(() => _isLoadingLocation = true);
-                  _determinePosition();
-                },
-              )
-            ],
-          ),
+          decoration: BoxDecoration(color: kMainTeal.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+          child: Row(children: [
+            const Icon(Icons.my_location, color: kMainTeal),
+            const SizedBox(width: 10),
+            Expanded(child: Text(_currentAddress, style: const TextStyle(fontWeight: FontWeight.bold))),
+            IconButton(icon: const Icon(Icons.refresh, color: kMainTeal), onPressed: _determinePosition)
+          ]),
         ),
-        const SizedBox(height: 30),
-        const Text("Cari Fasilitas Terdekat", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        const Text("Pilih kategori untuk membuka hasil di Google Maps", style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 20),
-        _buildSearchButton(icon: Icons.local_hospital, color: Colors.redAccent, title: "Klinik Tumbuh Kembang", keyword: "klinik tumbuh kembang anak terdekat"),
-        _buildSearchButton(icon: Icons.psychology, color: Colors.orange, title: "Psikolog Anak", keyword: "psikolog anak terdekat"),
-        _buildSearchButton(icon: Icons.record_voice_over, color: Colors.blue, title: "Terapi Wicara", keyword: "terapi wicara terdekat"),
-        _buildSearchButton(icon: Icons.accessibility_new, color: Colors.green, title: "Terapi Okupasi", keyword: "terapi okupasi anak terdekat"),
-        _buildSearchButton(icon: Icons.school, color: Colors.purple, title: "Sekolah Luar Biasa (SLB)", keyword: "sekolah luar biasa SLB terdekat"),
+        _btn(Icons.local_hospital, Colors.red, "Klinik Tumbuh Kembang", "klinik tumbuh kembang anak terdekat"),
+        _btn(Icons.psychology, Colors.orange, "Psikolog Anak", "psikolog anak terdekat"),
+        _btn(Icons.record_voice_over, Colors.blue, "Terapi Wicara", "terapi wicara terdekat"),
+        _btn(Icons.accessibility_new, Colors.green, "Terapi Okupasi", "terapi okupasi anak terdekat"),
+        _btn(Icons.school, Colors.purple, "Sekolah Luar Biasa", "sekolah luar biasa SLB terdekat"),
       ],
     );
   }
 
-  Widget _buildSearchButton({required IconData icon, required Color color, required String title, required String keyword}) {
+  Widget _btn(IconData i, Color c, String t, String k) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: () => _launchGoogleMapsSearch(keyword),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(width: 20),
-              Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kDarkGrey))),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-            ],
-          ),
-        ),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: Icon(i, color: c),
+        title: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () => _launchGoogleMapsSearch(k),
       ),
     );
   }
 }
 
 // ==========================================
-// TAB 2: CHAT AI (MENGGUNAKAN GOOGLE GEMINI)
+// TAB 2: CHATBOT OFFLINE (GRATIS & CANGGIH)
 // ==========================================
-class AiChatTab extends StatefulWidget {
-  const AiChatTab({super.key});
+class OfflineChatTab extends StatefulWidget {
+  const OfflineChatTab({super.key});
 
   @override
-  State<AiChatTab> createState() => _AiChatTabState();
+  State<OfflineChatTab> createState() => _OfflineChatTabState();
 }
 
-class _AiChatTabState extends State<AiChatTab> {
-  // === GANTI DENGAN API KEY DARI GOOGLE AI STUDIO (GRATIS) ===
-  static const String _geminiApiKey = 'AIzaSyB8S6Ouywt7kqbmNWkgMSCWXUKYnmMfJJA'; 
-  
-  late final GenerativeModel _model;
-  late final ChatSession _chat;
+class _OfflineChatTabState extends State<OfflineChatTab> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
-  // Menyimpan pesan dalam format UI kita
   final List<Map<String, String>> _messages = [];
-  bool _isLoading = false;
-  bool _isModelInitialized = false;
+  bool _isTyping = false; // Efek "sedang mengetik" biar terasa nyata
 
   @override
   void initState() {
     super.initState();
-    _initializeGemini();
+    _loadWelcomeMessage();
   }
 
-  Future<void> _initializeGemini() async {
-    // Cek apakah API Key sudah diisi
-    if (_geminiApiKey == 'AIzaSyB8S6Ouywt7kqbmNWkgMSCWXUKYnmMfJJA' || _geminiApiKey.isEmpty) {
-      return;
-    }
-
-    try {
-      _model = GenerativeModel(
-        model: 'gemini-pro', 
-        apiKey: _geminiApiKey,
-      );
-      _chat = _model.startChat();
-      
-      final prefs = await SharedPreferences.getInstance();
-      String userName = prefs.getString('userName') ?? "Bunda";
-
-      setState(() {
-        _isModelInitialized = true;
-        _messages.add({
-          "role": "model",
-          "text": "Halo $userName! Saya asisten TemanAsa. Ada yang bisa saya bantu?"
-        });
+  Future<void> _loadWelcomeMessage() async {
+    final prefs = await SharedPreferences.getInstance();
+    String userName = prefs.getString('userName') ?? "Bunda";
+    
+    setState(() {
+      _messages.add({
+        "role": "bot",
+        "text": "Halo $userName! 👋 Saya Asisten Asa.\n\nSaya bisa bantu jawab pertanyaan seputar:\n• Penanganan Tantrum\n• Terapi (Wicara/Okupasi)\n• Pola Makan / GTM\n• Tips Tidur\n\nMau tanya apa hari ini?"
       });
-    } catch (e) {
-      debugPrint("Error Init Gemini: $e");
-    }
+    });
   }
 
-  Future<void> _sendMessage() async {
-    final message = _textController.text;
-    if (message.trim().isEmpty) return;
-    if (!_isModelInitialized) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("API Key belum diisi atau inisialisasi gagal.")));
-      return;
-    }
+  void _handleMessage() {
+    String text = _textController.text.trim();
+    if (text.isEmpty) return;
 
     setState(() {
-      _messages.add({"role": "user", "text": message});
-      _isLoading = true;
+      _messages.add({"role": "user", "text": text});
+      _isTyping = true; // Munculkan indikator loading
     });
     _textController.clear();
     _scrollToBottom();
 
-    try {
-      final response = await _chat.sendMessage(Content.text(message));
-      final text = response.text;
-      
-      if (text != null && mounted) {
+    // Simulasi delay biar kayak mikir (1 detik)
+    Timer(const Duration(seconds: 1), () {
+      String reply = _generateSmartReply(text);
+      if (mounted) {
         setState(() {
-          _messages.add({"role": "model", "text": text});
-          _isLoading = false;
+          _isTyping = false;
+          _messages.add({"role": "bot", "text": reply});
         });
         _scrollToBottom();
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _messages.add({"role": "model", "text": "Maaf, terjadi kesalahan: $e"});
-          _isLoading = false;
-        });
-      }
+    });
+  }
+
+  // --- OTAK DARI CHATBOT OFFLINE ---
+  String _generateSmartReply(String input) {
+    String text = input.toLowerCase();
+
+    // 1. Topik TANTRUM
+    if (text.contains('tantrum') || text.contains('marah') || text.contains('nangis') || text.contains('ngamuk')) {
+      return "Menghadapi anak tantrum memang menantang. Coba langkah ini:\n\n1. Tetap Tenang: Anak butuh kita tenang saat mereka 'badai'.\n2. Validasi Emosi: Katakan 'Adik marah ya? Tidak apa-apa marah, tapi tidak boleh pukul'.\n3. Jangan Banyak Bicara: Saat tantrum, otak logikanya sedang mati. Peluk atau diam di dekatnya sampai reda.\n4. Cek Pemicu: Apakah dia lapar, lelah, atau *sensory overload*?";
     }
+
+    // 2. Topik TERAPI
+    if (text.contains('terapi') || text.contains('wicara') || text.contains('okupasi') || text.contains('bicara')) {
+      return "Terapi sangat bagus untuk perkembangan! 🧩\n\n• Terapi Wicara: Fokus melatih komunikasi dan otot mulut.\n• Terapi Okupasi: Melatih kemandirian (pakai baju, makan) dan sensorik.\n• Terapi Perilaku (ABA): Membentuk kebiasaan baik.\n\nIngat, terapi terbaik adalah yang dilanjutkan orang tua di rumah melalui bermain.";
+    }
+
+    // 3. Topik MAKAN / GTM
+    if (text.contains('makan') || text.contains('gtm') || text.contains('lapar') || text.contains('sayur')) {
+      return "Masalah makan umum terjadi pada anak autis karena sensitivitas tekstur.\n\nTips:\n• Food Chaining: Mulai dari makanan kesukaannya, lalu kenalkan makanan yang mirip teksturnya sedikit demi sedikit.\n• Jangan Paksa: Memaksa malah bikin trauma.\n• Ajak Main: Biarkan dia menyentuh atau mencium makanan baru tanpa harus memakannya dulu (eksplorasi sensorik).";
+    }
+
+    // 4. Topik TIDUR
+    if (text.contains('tidur') || text.contains('begadang') || text.contains('bangun')) {
+      return "Susah tidur? Coba rutinitas ini 😴:\n\n1. Matikan gadget 1 jam sebelum tidur.\n2. Redupkan lampu kamar.\n3. Pijatan lembut atau selimut berat (weighted blanket) bisa membantu menenangkan sistem sarafnya.\n4. Pastikan jadwal tidur konsisten setiap hari.";
+    }
+    
+    // 5. Sapaan
+    if (text.contains('halo') || text.contains('hi') || text.contains('pagi') || text.contains('malam')) {
+      return "Halo juga! Ada yang bisa saya bantu tentang si kecil?";
+    }
+    
+    // 6. Terimakasih
+    if (text.contains('makasih') || text.contains('thanks') || text.contains('trims')) {
+      return "Sama-sama! Semangat terus ya, kamu orang tua hebat! 💪";
+    }
+
+    // DEFAULT (Jika tidak mengerti)
+    return "Maaf, saya masih belajar. 🤔\n\nCoba tanya tentang:\n- 'Cara atasi tantrum'\n- 'Tips anak susah makan'\n- 'Apa itu terapi wicara?'\n- 'Anak susah tidur'";
   }
 
   void _scrollToBottom() {
@@ -313,52 +252,31 @@ class _AiChatTabState extends State<AiChatTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Tampilan jika API Key belum diisi
-    if (!_isModelInitialized && (_geminiApiKey == 'AIzaSyB8S6Ouywt7kqbmNWkgMSCWXUKYnmMfJJA' || _geminiApiKey.isEmpty)) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.vpn_key_off, size: 60, color: Colors.orange),
-              const SizedBox(height: 20),
-              const Text(
-                "API Key Belum Diatur",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "Silakan masukkan API Key Google Gemini (Gratis) di kode discover_screen.dart",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                   final Uri url = Uri.parse("https://aistudio.google.com/app/apikey");
-                   if (!await launchUrl(url)) {
-                     // handle error
-                   }
-                },
-                child: const Text("Dapatkan API Key di Sini"),
-              )
-            ],
-          ),
-        ),
-      );
-    }
-
     return Column(
       children: [
+        // --- CHAT LIST ---
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(16),
-            itemCount: _messages.length,
+            itemCount: _messages.length + (_isTyping ? 1 : 0),
             itemBuilder: (context, index) {
+              // Tampilkan indikator typing di item terakhir jika sedang loading
+              if (_isTyping && index == _messages.length) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(20)),
+                    child: const Text("Sedang mengetik...", style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+                  ),
+                );
+              }
+
               final msg = _messages[index];
               final isUser = msg['role'] == 'user';
+              
               return Align(
                 alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                 child: Container(
@@ -384,11 +302,8 @@ class _AiChatTabState extends State<AiChatTab> {
             },
           ),
         ),
-        if (_isLoading)
-          const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: LinearProgressIndicator(color: kMainTeal, minHeight: 2),
-          ),
+
+        // --- INPUT FIELD ---
         Container(
           padding: const EdgeInsets.all(16),
           color: Colors.white,
@@ -397,14 +312,15 @@ class _AiChatTabState extends State<AiChatTab> {
               Expanded(
                 child: TextField(
                   controller: _textController,
+                  textCapitalization: TextCapitalization.sentences,
                   decoration: InputDecoration(
-                    hintText: "Tanya sesuatu...",
+                    hintText: "Tanya tentang tantrum, makan...",
                     filled: true,
                     fillColor: kSoftBeige,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                   ),
-                  onSubmitted: (_) => _sendMessage(),
+                  onSubmitted: (_) => _handleMessage(),
                 ),
               ),
               const SizedBox(width: 10),
@@ -412,7 +328,7 @@ class _AiChatTabState extends State<AiChatTab> {
                 backgroundColor: kMainTeal,
                 child: IconButton(
                   icon: const Icon(Icons.send, color: Colors.white),
-                  onPressed: _sendMessage,
+                  onPressed: _handleMessage,
                 ),
               )
             ],
