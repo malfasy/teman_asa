@@ -55,7 +55,7 @@ class _BehaviorAnalyticsScreenState extends State<BehaviorAnalyticsScreen> {
     DateTime now = DateTime.now();
     // Cari hari Senin minggu ini untuk grafik mingguan
     DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day); // Reset jam ke 00:00
+    startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
     DateTime endOfWeek = startOfWeek.add(const Duration(days: 7));
 
     // Reset counters
