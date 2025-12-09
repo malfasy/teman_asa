@@ -11,20 +11,58 @@ class ContentScreen extends StatefulWidget {
   State<ContentScreen> createState() => _ContentScreenState();
 }
 
-class _ContentScreenState extends State<ContentScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ContentScreenState extends State<ContentScreen> {
+  String _selectedCategory = "Semua";
+  final List<String> _categories = ["Semua", "Autisme", "Perilaku", "Sensori", "Terapi"];
 
-  // --- DATA ARTIKEL LENGKAP (Hardcoded di sini) ---
-  final List<Map<String, dynamic>> _articles = const [
+  // --- MENGGUNAKAN WARNA TEMA (withOpacity untuk background) ---
+  final List<Map<String, dynamic>> _videos = [
     {
+      "type": "video",
+      "category": "Autisme",
+      "title": "Apa itu Autisme?",
+      "desc": "Perspektif tentang autisme.",
+      "source": "Video Edukasi",
+      "videoId": "DwXRIu0esT0",
+      "color": kMainTeal.withOpacity(0.15), // Teal Soft
+      "accent": kMainTeal,
+      "icon": Icons.play_circle_filled_rounded
+    },
+    {
+      "type": "video",
+      "category": "Perilaku",
+      "title": "Mengatasi Tantrum",
+      "desc": "Tips praktis saat anak tantrum.",
+      "source": "Video Edukasi",
+      "videoId": "Nf5GlbRkRys",
+      "color": kAccentCoral.withOpacity(0.15), // Coral Soft
+      "accent": kAccentCoral,
+      "icon": Icons.play_circle_filled_rounded
+    },
+    {
+      "type": "video",
+      "category": "Perilaku",
+      "title": "Perilaku Berulang",
+      "desc": "Penjelasan stimming & repetitif.",
+      "source": "Video Edukasi",
+      "videoId": "2LhI23QPoi8",
+      "color": kAccentPurple.withOpacity(0.15), // Purple Soft
+      "accent": kAccentPurple,
+      "icon": Icons.play_circle_filled_rounded
+    },
+  ];
+
+  final List<Map<String, dynamic>> _articles = [
+    {
+      "type": "article",
+      "category": "Perilaku",
       "title": "Membangun Rutinitas Harian",
       "desc": "Panduan membuat jadwal visual agar anak merasa aman & produktif.",
       "source": "TAMTAM.CO.ID",
-      "color": Color(0xFFFFF4E1),
-      "accent": Colors.orange,
+      "color": kAccentYellow.withOpacity(0.2), // Yellow Soft
+      "accent": const Color(0xFFE6B800), // Kuning Gelap utk Teks/Icon
       "icon": Icons.schedule_rounded,
       "content": """
-
 Anak-anak dengan Autism Spectrum Disorder (ASD) sering kali memiliki kebutuhan yang kuat akan prediktabilitas. Dunia bisa terasa sangat kacau dan membingungkan bagi mereka. Dengan pendekatan yang tepat, rutinitas harian dapat menjadi "jangkar" yang mendukung perkembangan sosial, kognitif, dan emosional anak.
 
 **Mengapa Rutinitas Itu Sangat Vital?**
@@ -89,11 +127,13 @@ Libatkan mereka dalam membuat keputusan kecil ini, dan mereka akan merasa memili
 """
     },
     {
+      "type": "article",
+      "category": "Sensori",
       "title": "Memahami Sensory Overload",
       "desc": "Kenali tanda-tanda anak kelebihan sensori dan cara menenangkannya.",
       "source": "AUTISM-DISCOVERY.COM",
-      "color": Color(0xFFE1F5FE),
-      "accent": Colors.lightBlue,
+      "color": kMainTeal.withOpacity(0.15), // Teal Soft
+      "accent": kMainTeal,
       "icon": Icons.hearing_disabled_rounded,
       "content": """
 Bayangkan berjalan ke dalam supermarket yang terang benderang. Lampu neon berkedip di atas, musik berdengung dari speaker, troli berderak di lantai, dan suara serta percakapan saling tumpang tindih. Bagi kebanyakan orang, ini mungkin hanya sedikit mengganggu. Tapi bagi banyak individu autis, pemandangan ini bisa terasa tak tertahankan, banjir suara, cahaya, dan sensasi yang otak tidak bisa saring atau kendalikan. Pengalaman ini dikenal sebagai kelebihan sensorik, dan ini adalah salah satu aspek autisme yang paling umum dan menantang.
@@ -173,11 +213,13 @@ Meskipun tidak mungkin untuk menghindari setiap pemicu, ada cara efektif untuk m
 """
     },
     {
+      "type": "article",
+      "category": "Terapi",
       "title": "Terapi Anak Autis di Rumah",
       "desc": "Tips praktis terapi wicara dan okupasi sederhana oleh orang tua.",
       "source": "WICARAKU.ID",
-      "color": Color(0xFFE8F5E9),
-      "accent": Colors.green,
+      "color": kMainTeal.withOpacity(0.15), // Teal Soft (Konsisten)
+      "accent": kMainTeal,
       "icon": Icons.home_rounded,
       "content": """
 Berbeda dengan terapi di klinik, terapi di rumah memungkinkan anak belajar dengan lebih rileks dan konsisten. Selain itu, orang tua memiliki kesempatan untuk ikut berpartisipasi langsung dalam setiap proses perkembangan anak. Dengan pendekatan yang tepat, perubahan positif sering kali terlihat lebih cepat karena stimulasi dapat diberikan setiap hari dalam suasana penuh kasih.
@@ -243,177 +285,249 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
     },
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case "Semua": return Icons.dashboard_outlined;
+      case "Autisme": return Icons.favorite_border;
+      case "Perilaku": return Icons.sentiment_satisfied_alt;
+      case "Sensori": return Icons.toys_outlined;
+      case "Terapi": return Icons.spa_outlined;
+      default: return Icons.category;
+    }
+  }
+
+  List<Map<String, dynamic>> _getFilteredContent() {
+    List<Map<String, dynamic>> mixedContent = [];
+    mixedContent.addAll(_articles);
+
+    if (_selectedCategory == "Semua") {
+      mixedContent.addAll(_videos.sublist(1)); 
+    } else {
+      mixedContent.addAll(_videos);
+    }
+
+    if (_selectedCategory == "Semua") {
+      return mixedContent;
+    } else {
+      return mixedContent.where((item) => item['category'] == _selectedCategory).toList();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final displayContent = _getFilteredContent();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Edukasi & Tips"),
+        title: const Text("Explore Contents"),
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: kMainTeal,
-          unselectedLabelColor: kIconGrey,
-          indicatorColor: kMainTeal,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
-          tabs: const [
-            Tab(text: "Video"),
-            Tab(text: "Artikel"),
+        backgroundColor: Colors.white,
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 28),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicScreen())),
+            icon: const Icon(Icons.music_note_rounded, color: kMainTeal),
+          )
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            
+            // Kategori Scroll
+            SizedBox(
+              height: 90,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length,
+                separatorBuilder: (ctx, i) => const SizedBox(width: 20),
+                itemBuilder: (context, index) {
+                  final cat = _categories[index];
+                  bool isSelected = _selectedCategory == cat;
+
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedCategory = cat),
+                    child: Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 55, height: 55,
+                          decoration: BoxDecoration(
+                            color: isSelected ? kMainTeal : Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                            boxShadow: isSelected ? [
+                              BoxShadow(color: kMainTeal.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))
+                            ] : [],
+                          ),
+                          child: Icon(
+                            _getCategoryIcon(cat), 
+                            color: isSelected ? Colors.white : Colors.grey
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          cat, 
+                          style: TextStyle(
+                            fontSize: 12, 
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, 
+                            color: isSelected ? kMainTeal : Colors.grey
+                          )
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Featured Video Banner (warna solid tema, bukan custom brown)
+            if (_selectedCategory == "Semua")
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPlayerScreen(videoId: _videos[0]['videoId'], title: _videos[0]['title']))),
+                  child: Container(
+                    height: 160,
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      // Menggunakan kAccentCoral agar lebih hidup tapi tetap dalam tema
+                      color: kAccentCoral.withOpacity(0.2), 
+                      borderRadius: BorderRadius.circular(24),
+                      image: const DecorationImage(
+                        image: AssetImage('assets/images/pattern_bg.png'),
+                        fit: BoxFit.cover,
+                        opacity: 0.1
+                      )
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(_videos[0]['title'], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kDarkGrey)),
+                              const SizedBox(height: 4),
+                              Text(_videos[0]['desc'], style: const TextStyle(fontSize: 12, color: kDarkGrey)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: const BoxDecoration(color: kAccentCoral, shape: BoxShape.circle),
+                          child: const Icon(Icons.play_arrow, color: Colors.white, size: 24),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Grid Content
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: displayContent.isEmpty 
+              ? const Center(child: Text("Belum ada konten di kategori ini.", style: TextStyle(color: Colors.grey)))
+              : GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.85, 
+                ),
+                itemCount: displayContent.length,
+                itemBuilder: (context, index) {
+                  final item = displayContent[index];
+                  return _buildUnifiedGridCard(context, item);
+                },
+              ),
+            ),
+            
+            const SizedBox(height: 40),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MusicScreen()));
-        },
-        label: const Text("Buka Musik"),
-        icon: const Icon(Icons.music_note_rounded),
-        backgroundColor: kMainTeal,
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // --- TAB 1: VIDEO (Logika Lama Tetap Ada) ---
-          ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _videoCard("Apa itu Autisme?", "Penjelasan dasar tentang autisme.", "DwXRIu0esT0", kMainTeal),
-              _videoCard("Mengatasi Tantrum", "Tips praktis saat anak tantrum.", "Nf5GlbRkRys", kAccentCoral),
-              _videoCard("Apa itu Repetitive Behaviours?", "Penjelasan perilaku berulang.", "2LhI23QPoi8", kAccentYellow),
-            ],
-          ),
-
-          // --- TAB 2: ARTIKEL (Logika Baru) ---
-          ListView.separated(
-            padding: const EdgeInsets.all(20),
-            itemCount: _articles.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 16),
-            itemBuilder: (context, index) {
-              return _buildArticleCard(context, _articles[index]);
-            },
-          ),
-        ],
-      ),
     );
   }
 
-  // WIDGET CARD UNTUK VIDEO
-  Widget _videoCard(String title, String desc, String videoId, Color color) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => VideoPlayerScreen(videoId: videoId, title: title)),
-          );
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                height: 60, width: 60,
-                decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
-                child: Icon(Icons.play_arrow_rounded, color: color, size: 35),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 4),
-                    Text(desc, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            ],
+  // --- WIDGET GRID (WARNA & GRADIENT DISESUAIKAN) ---
+  Widget _buildUnifiedGridCard(BuildContext context, Map<String, dynamic> item) {
+    bool isVideo = item['type'] == 'video';
+    // Menggunakan warna dari item['color'] yang sudah diset pakai tema
+    Color cardColor = item['color']; 
+    Color accentColor = item['accent'];
+
+    return GestureDetector(
+      onTap: () {
+        if (isVideo) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPlayerScreen(videoId: item['videoId'], title: item['title'])));
+        } else {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => ArticleDetailScreen(article: item)));
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          // Gradient halus dari warna tema
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              cardColor,
+              cardColor.withOpacity(0.8), // Sedikit lebih pekat di bawah
+            ]
           ),
+          borderRadius: BorderRadius.circular(24),
         ),
-      ),
-    );
-  }
-
-  // WIDGET CARD UNTUK ARTIKEL (Desain Baru)
-  Widget _buildArticleCard(BuildContext context, Map<String, dynamic> article) {
-    return Container(
-      decoration: BoxDecoration(
-        color: article['color'],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            // Navigasi ke Halaman Detail (Full Screen)
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ArticleDetailScreen(article: article)),
-            );
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                // Icon Bulat
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: article['accent'].withOpacity(0.2), blurRadius: 8)],
-                  ),
-                  child: Icon(article['icon'], color: article['accent'], size: 24),
-                ),
-                const SizedBox(width: 16),
-                // Teks
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        article['source'],
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: article['accent']),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        article['title'],
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kDarkGrey),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        article['desc'],
-                        style: TextStyle(fontSize: 12, color: kDarkGrey.withOpacity(0.7)),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.arrow_forward_ios_rounded, size: 16, color: article['accent'].withOpacity(0.5)),
-              ],
+        child: Stack(
+          children: [
+            Positioned(
+              right: -10, top: -10,
+              child: Icon(item['icon'], size: 100, color: Colors.white.withOpacity(0.4)),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
+                    child: Icon(item['icon'], color: accentColor, size: 20),
+                  ),
+                  const Spacer(),
+                  Text(
+                    item['title'],
+                    style: TextStyle(
+                      fontFamily: 'NerkoOne',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: kDarkGrey.withOpacity(0.8), // Warna teks standar
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item['source'] ?? "-", 
+                    style: TextStyle(fontSize: 10, color: kDarkGrey.withOpacity(0.5), fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            )
+          ],
         ),
       ),
     );
   }
 }
 
-// --- HALAMAN DETAIL ARTIKEL (FULL SCREEN) ---
-// Ditaruh di file yang sama agar mudah dicopy-paste
+// --- ARTIKEL DETAIL (TETAP SAMA) ---
 class ArticleDetailScreen extends StatelessWidget {
   final Map<String, dynamic> article;
 
@@ -441,7 +555,6 @@ class ArticleDetailScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
@@ -460,7 +573,7 @@ class ArticleDetailScreen extends StatelessWidget {
                   Text(
                     article['title'],
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kDarkGrey, fontFamily: 'Poppins'),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kDarkGrey, fontFamily: 'NerkoOne'),
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -477,42 +590,19 @@ class ArticleDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Konten Artikel (MENGGUNAKAN MARKDOWN)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // INILAH PERUBAHAN UTAMANYA:
-                  MarkdownBody(
-                    data: article['content'], // String konten markdown
-                    styleSheet: MarkdownStyleSheet(
-                      // Mengatur gaya teks agar konsisten dengan tema aplikasi
-                      p: const TextStyle(fontSize: 16, height: 1.8, color: kDarkGrey), // Paragraf biasa
-                      strong: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black), // Bold (**)
-                      em: const TextStyle(fontStyle: FontStyle.italic, color: kDarkGrey), // Italic (*)
-                      listBullet: const TextStyle(color: kMainTeal, fontSize: 16), // Titik bullet
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  const Divider(),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.check_circle_rounded),
-                      label: const Text("Selesai Membaca"),
-                      style: TextButton.styleFrom(
-                        foregroundColor: kMainTeal,
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 50),
-                ],
+              child: MarkdownBody(
+                data: article['content'],
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(fontSize: 16, height: 1.8, color: kDarkGrey),
+                  strong: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                  em: const TextStyle(fontStyle: FontStyle.italic, color: kDarkGrey),
+                  listBullet: const TextStyle(color: kMainTeal, fontSize: 16),
+                ),
               ),
             ),
+             const SizedBox(height: 40),
           ],
         ),
       ),

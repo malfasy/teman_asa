@@ -14,6 +14,35 @@ class _AacScreenState extends State<AacScreen> {
   final TextEditingController _customTextController = TextEditingController();
   bool isSpeaking = false;
 
+  // Data Tombol AAC yang SUDAH DITAMBAH (Total 16 Kata)
+  final List<Map<String, dynamic>> _aacItems = [
+    // Kebutuhan Dasar
+    {"label": "Makan", "icon": Icons.restaurant_menu_rounded, "color": Colors.orange},
+    {"label": "Minum", "icon": Icons.local_cafe_rounded, "color": Colors.blue},
+    {"label": "Sakit", "icon": Icons.sick_rounded, "color": Colors.red},
+    {"label": "Tidur", "icon": Icons.bedtime_rounded, "color": kAccentPurple},
+    {"label": "Toilet", "icon": Icons.wc_rounded, "color": kMainTeal},
+    {"label": "Main", "icon": Icons.toys_rounded, "color": kAccentYellow},
+    
+    // Jawaban Cepat
+    {"label": "Ya", "icon": Icons.check_circle_rounded, "color": Colors.green},
+    {"label": "Tidak", "icon": Icons.cancel_rounded, "color": kAccentCoral},
+    
+    // Permintaan & Ekspresi (BARU)
+    {"label": "Mau", "icon": Icons.pan_tool_alt_rounded, "color": Colors.cyan},
+    {"label": "Tolong", "icon": Icons.volunteer_activism_rounded, "color": Colors.pink},
+    {"label": "Suka", "icon": Icons.favorite_rounded, "color": Colors.pinkAccent},
+    {"label": "Stop", "icon": Icons.back_hand_rounded, "color": Colors.redAccent},
+    
+    // Emosi (BARU)
+    {"label": "Senang", "icon": Icons.sentiment_very_satisfied_rounded, "color": Colors.amber},
+    {"label": "Sedih", "icon": Icons.sentiment_dissatisfied_rounded, "color": Colors.blueGrey},
+    {"label": "Marah", "icon": Icons.sentiment_very_dissatisfied_rounded, "color": Colors.deepOrange},
+    
+    // Lainnya (BARU)
+    {"label": "Pulang", "icon": Icons.home_rounded, "color": Colors.brown},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -28,24 +57,12 @@ class _AacScreenState extends State<AacScreen> {
   }
 
   void _initTts() async {
-    // 1. Tunggu mesin suara siap
     await flutterTts.awaitSpeakCompletion(true);
-
-    // 2. Cek apakah HP punya Bahasa Indonesia
     var isAvailable = await flutterTts.isLanguageAvailable("id-ID");
-
     if (isAvailable) {
-      // 3. Jika ada, PAKSA pakai Indonesia
       await flutterTts.setLanguage("id-ID");
-    } else {
-      // 4. Jika tidak ada, beri peringatan ke pengguna
-      if (mounted) {
-        _showInstallDialog();
-      }
     }
-
-    // Pengaturan suara agar natural
-    await flutterTts.setSpeechRate(0.5); 
+    await flutterTts.setSpeechRate(0.5);
     await flutterTts.setVolume(1.0);
     await flutterTts.setPitch(1.0);
 
@@ -56,73 +73,87 @@ class _AacScreenState extends State<AacScreen> {
 
   void _speak(String text) async {
     if (text.isNotEmpty) {
-      // Set ulang bahasa setiap kali mau bicara untuk memastikan
-      await flutterTts.setLanguage("id-ID"); 
+      await flutterTts.setLanguage("id-ID");
       await flutterTts.speak(text);
     }
-  }
-
-  void _showInstallDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Suara Indonesia Hilang"),
-        content: const Text(
-          "HP Anda belum memiliki data suara Bahasa Indonesia.\n\n"
-          "Silakan buka: Pengaturan > Text-to-speech > Google Engine > Install Voice Data > Pilih 'Indonesian'."
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Oke"))
-        ],
-      )
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Komunikasi (AAC)")),
+      backgroundColor: kSoftBeige, // Background konsisten
+      appBar: AppBar(
+        title: const Text("Bantu Bicara"),
+        backgroundColor: kSoftBeige,
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: Column(
         children: [
-          // INPUT MANUAL
+          // 1. INPUT TEXT MANUAL
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]
+            ),
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _customTextController,
-                    decoration: const InputDecoration(
-                      hintText: "Ketik kata di sini...",
-                      border: OutlineInputBorder(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: kSoftBeige,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: TextField(
+                      controller: _customTextController,
+                      decoration: const InputDecoration(
+                        hintText: "Ketik ucapan di sini...",
+                        border: InputBorder.none,
+                        icon: Icon(Icons.keyboard, color: kIconGrey),
+                      ),
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.volume_up, size: 30, color: kMainTeal),
-                  onPressed: () => _speak(_customTextController.text),
-                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => _speak(_customTextController.text),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: kMainTeal,
+                    child: Icon(isSpeaking ? Icons.graphic_eq : Icons.volume_up_rounded, color: Colors.white),
+                  ),
+                )
               ],
             ),
           ),
 
-          // GRID TOMBOL
+          // 2. HEADER KECIL
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 24, 24, 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Kartu Cepat", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kDarkGrey)),
+            ),
+          ),
+
+          // 3. GRID TOMBOL AAC
           Expanded(
-            child: GridView.count(
-              padding: const EdgeInsets.all(24),
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: [
-                _aacBtn("Makan", Icons.restaurant_menu_rounded, kMainTeal),
-                _aacBtn("Minum", Icons.local_cafe_rounded, kMainTeal),
-                _aacBtn("Sakit", Icons.sick, kAccentCoral),
-                _aacBtn("Tidur", Icons.bedtime, kAccentPurple),
-                _aacBtn("Main", Icons.toys, kAccentYellow),
-                _aacBtn("Toilet", Icons.wc, kMainTeal),
-                _aacBtn("Ya", Icons.check_circle, Colors.green),
-                _aacBtn("Tidak", Icons.cancel, Colors.red),
-              ],
+            child: GridView.builder(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.1, 
+              ),
+              itemCount: _aacItems.length,
+              itemBuilder: (context, index) {
+                final item = _aacItems[index];
+                return _buildAacCard(item);
+              },
             ),
           ),
         ],
@@ -130,17 +161,39 @@ class _AacScreenState extends State<AacScreen> {
     );
   }
 
-  Widget _aacBtn(String text, IconData icon, Color color) {
+  Widget _buildAacCard(Map<String, dynamic> item) {
+    Color baseColor = item['color'];
+    
     return GestureDetector(
-      onTap: () => _speak(text),
-      child: Card(
-        color: Colors.white,
+      onTap: () {
+        _speak(item['label']);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: baseColor.withOpacity(0.15), // Background soft
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: baseColor.withOpacity(0.3), width: 1.5),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 50, color: color),
-            const SizedBox(height: 10),
-            Text(text, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color, fontFamily: 'NerkoOne')),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(item['icon'], size: 32, color: baseColor),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              item['label'],
+              style: const TextStyle(
+                fontFamily: 'NerkoOne', // Font playful
+                fontSize: 22,
+                color: kDarkGrey,
+              ),
+            ),
           ],
         ),
       ),
