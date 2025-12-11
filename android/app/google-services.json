@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "661669919796-omvhp8su12ol4eaipk5h3lqecpv53ek2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.teman_asa",
+            "certificate_hash": "db87246698622ea022c6aad0cdd1c28109949a9a"
+          }
+        },
+        {
           "client_id": "661669919796-qbng1tjhb805tq40mtbei9241ps6p1b8.apps.googleusercontent.com",
           "client_type": 3
         }
