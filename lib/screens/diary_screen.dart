@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart'; // PENTING: Untuk inisialisasi locale
+import 'package:intl/date_symbol_data_local.dart'; 
 import 'package:teman_asa/theme.dart';
-import 'package:teman_asa/screens/behavior_analytics_screen.dart'; // PENTING: Pastikan file ini ada
+import 'package:teman_asa/screens/behavior_analytics_screen.dart';
 
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
@@ -37,7 +37,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('id_ID', null); // PENTING: Mencegah error "Locale not initialized"
+    initializeDateFormatting('id_ID', null); 
     _loadLogs();
   }
 
@@ -48,7 +48,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
       setState(() {
         _logs = List<Map<String, dynamic>>.from(jsonDecode(logsString));
         _logs.sort((a, b) {
-           // Handle sorting dengan aman (cegah crash jika format tanggal salah)
            try {
              return DateTime.parse(b['date']).compareTo(DateTime.parse(a['date']));
            } catch (e) {
@@ -64,9 +63,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
     prefs.setString('behavior_logs', jsonEncode(_logs));
   }
 
-  // --- FORM INPUT LOG ---
-  // ... kode sebelumnya di dalam class _DiaryScreenState ...
-
+  // FORM INPUT LOG
   void _showAddLogForm() {
     String selectedBehavior = _behaviorTypes[0]; 
     TextEditingController antecedentController = TextEditingController();
@@ -77,16 +74,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // WAJIB TRUE agar bisa full screen/resize
+      isScrollControlled: true, 
       backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(builder: (context, setModalState) {
-          return Padding( // <--- TAMBAHKAN PADDING INI
+          return Padding( 
             padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom // <--- INI KUNCINYA (Tinggi Keyboard)
+              bottom: MediaQuery.of(context).viewInsets.bottom 
             ),
             child: Container(
-              height: MediaQuery.of(context).size.height * 0.85, // Kurangi dikit biar ga mentok atas banget
+              height: MediaQuery.of(context).size.height * 0.85, 
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
@@ -101,13 +98,11 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   const SizedBox(height: 20),
 
                   Expanded(
-                    child: ListView( // ListView akan otomatis scroll jika keyboard muncul
+                    child: ListView( 
                       children: [
-                        // ... (LOGIKA INPUT WAKTU TETAP SAMA) ...
                         _buildSectionTitle("Waktu Kejadian"),
                         InkWell(
                           onTap: () async {
-                             // ... (Kode DatePicker tetap sama) ...
                              final date = await showDatePicker(context: context, initialDate: selectedTime, firstDate: DateTime(2020), lastDate: DateTime.now());
                              if (date != null) {
                                final time = await showTimePicker(context: context, initialTime: timeOfDay);
@@ -133,7 +128,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // ... (LOGIKA DROPDOWN BEHAVIOR TETAP SAMA) ...
                          _buildSectionTitle("Jenis Perilaku (Behavior)"),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -149,7 +143,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // INPUT TEXT PEMICU (Keyboard aman disini)
                         _buildSectionTitle("Pemicu (Antecedent)"),
                         TextField(
                           controller: antecedentController,
@@ -158,7 +151,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // INPUT TEXT KONSEKUENSI (Keyboard aman disini)
                         _buildSectionTitle("Respon/Konsekuensi"),
                         TextField(
                           controller: consequenceController,
@@ -167,7 +159,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // ... (LOGIKA MOOD TETAP SAMA) ...
                         _buildSectionTitle("Mood Anak"),
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -194,7 +185,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             }).toList(),
                           ),
                         ),
-                        const SizedBox(height: 20), // Tambahan space bawah biar ga mentok
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -204,7 +195,6 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                         // ... (LOGIKA SIMPAN TETAP SAMA) ...
                          setState(() {
                           _logs.insert(0, {
                             'id': DateTime.now().millisecondsSinceEpoch.toString(),

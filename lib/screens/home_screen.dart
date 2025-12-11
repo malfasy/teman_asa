@@ -100,14 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Supaya bisa full height jika keyboard muncul
+      isScrollControlled: true, 
       backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20, // Handle Keyboard
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
                 left: 20,
                 right: 20,
                 top: 20
@@ -288,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 GestureDetector(
                   onTap: () async {
                     await Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-                    _loadUserData(); // Reload nama jika berubah
+                    _loadUserData();
                   },
                   child: CircleAvatar(
                     radius: 26,
@@ -485,7 +485,6 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
       } catch (e) {
-        // Ignore parsing error
       }
     }
 
@@ -531,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // Chart Bar
           SizedBox(
-            height: 130, // <--- DIPERBESAR (Sebelumnya 100)
+            height: 130, 
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.end,

@@ -16,7 +16,7 @@ class _BehaviorAnalyticsScreenState extends State<BehaviorAnalyticsScreen> {
   bool _isLoading = true;
 
   // Variabel untuk menyimpan hasil analisis
-  List<int> _weeklyCounts = List.filled(7, 0); // Senin-Minggu
+  List<int> _weeklyCounts = List.filled(7, 0); 
   Map<String, int> _behaviorCounts = {};
   Map<String, int> _timeOfDayCounts = {
     "Pagi (06-11)": 0,
@@ -53,7 +53,6 @@ class _BehaviorAnalyticsScreenState extends State<BehaviorAnalyticsScreen> {
     if (_logs.isEmpty) return;
     
     DateTime now = DateTime.now();
-    // Cari hari Senin minggu ini untuk grafik mingguan
     DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
     DateTime endOfWeek = startOfWeek.add(const Duration(days: 7));
@@ -149,7 +148,7 @@ class _BehaviorAnalyticsScreenState extends State<BehaviorAnalyticsScreen> {
                   child: Column(
                     children: [
                       SizedBox(
-                        height: 180, // <--- DIPERBESAR (Sebelumnya 150)
+                        height: 180,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -158,10 +157,8 @@ class _BehaviorAnalyticsScreenState extends State<BehaviorAnalyticsScreen> {
                             int maxVal = _weeklyCounts.reduce((curr, next) => curr > next ? curr : next);
                             if (maxVal == 0) maxVal = 1;
                             
-                            double maxBarH = 120; // Tinggi maksimal batang
+                            double maxBarH = 120; 
                             double heightFactor = (count / maxVal) * maxBarH;
-                            
-                            // Label Hari Static (Sen - Min)
                             final days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
                             return Column(
@@ -178,7 +175,7 @@ class _BehaviorAnalyticsScreenState extends State<BehaviorAnalyticsScreen> {
                                   duration: const Duration(milliseconds: 600),
                                   curve: Curves.easeOut,
                                   width: 16,
-                                  height: heightFactor > 5 ? heightFactor : 5, // Min height 5
+                                  height: heightFactor > 5 ? heightFactor : 5,
                                   decoration: BoxDecoration(
                                     color: count > 0 ? kAccentCoral : Colors.grey.shade200,
                                     borderRadius: BorderRadius.circular(8),

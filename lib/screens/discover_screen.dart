@@ -25,7 +25,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kSoftBeige, // Background konsisten
+      backgroundColor: kSoftBeige, 
       appBar: AppBar(
         title: const Text("Discover"),
         centerTitle: true,
@@ -38,7 +38,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
           indicatorSize: TabBarIndicatorSize.tab,
           indicator: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
-            color: kMainTeal, // Tab aktif bentuk kapsul
+            color: kMainTeal, 
           ),
           dividerColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -60,9 +60,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   }
 }
 
-// ==========================================
 // TAB 1: CARI FASILITAS (GRID DESIGN)
-// ==========================================
 class NearbySearchTab extends StatefulWidget {
   const NearbySearchTab({super.key});
 
@@ -256,9 +254,7 @@ class _NearbySearchTabState extends State<NearbySearchTab> {
   }
 }
 
-// ==========================================
 // TAB 2: CHATBOT OFFLINE (MODERN CHAT UI)
-// ==========================================
 class OfflineChatTab extends StatefulWidget {
   const OfflineChatTab({super.key});
 

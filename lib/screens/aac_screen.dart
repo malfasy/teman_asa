@@ -81,7 +81,7 @@ class _AacScreenState extends State<AacScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kSoftBeige, // Background konsisten
+      backgroundColor: kSoftBeige, 
       appBar: AppBar(
         title: const Text("Bantu Bicara"),
         backgroundColor: kSoftBeige,
@@ -170,7 +170,7 @@ class _AacScreenState extends State<AacScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: baseColor.withOpacity(0.15), // Background soft
+          color: baseColor.withOpacity(0.15), 
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: baseColor.withOpacity(0.3), width: 1.5),
         ),
@@ -189,7 +189,7 @@ class _AacScreenState extends State<AacScreen> {
             Text(
               item['label'],
               style: const TextStyle(
-                fontFamily: 'NerkoOne', // Font playful
+                fontFamily: 'NerkoOne',
                 fontSize: 22,
                 color: kDarkGrey,
               ),

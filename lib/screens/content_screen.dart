@@ -14,8 +14,6 @@ class ContentScreen extends StatefulWidget {
 class _ContentScreenState extends State<ContentScreen> {
   String _selectedCategory = "Semua";
   final List<String> _categories = ["Semua", "Autisme", "Perilaku", "Sensori", "Terapi"];
-
-  // --- MENGGUNAKAN WARNA TEMA (withOpacity untuk background) ---
   final List<Map<String, dynamic>> _videos = [
     {
       "type": "video",
@@ -24,7 +22,7 @@ class _ContentScreenState extends State<ContentScreen> {
       "desc": "Perspektif tentang autisme.",
       "source": "Video Edukasi",
       "videoId": "DwXRIu0esT0",
-      "color": kMainTeal.withOpacity(0.15), // Teal Soft
+      "color": kMainTeal.withOpacity(0.15), 
       "accent": kMainTeal,
       "icon": Icons.play_circle_filled_rounded
     },
@@ -35,7 +33,7 @@ class _ContentScreenState extends State<ContentScreen> {
       "desc": "Tips praktis saat anak tantrum.",
       "source": "Video Edukasi",
       "videoId": "Nf5GlbRkRys",
-      "color": kAccentCoral.withOpacity(0.15), // Coral Soft
+      "color": kAccentCoral.withOpacity(0.15),
       "accent": kAccentCoral,
       "icon": Icons.play_circle_filled_rounded
     },
@@ -46,7 +44,7 @@ class _ContentScreenState extends State<ContentScreen> {
       "desc": "Penjelasan stimming & repetitif.",
       "source": "Video Edukasi",
       "videoId": "2LhI23QPoi8",
-      "color": kAccentPurple.withOpacity(0.15), // Purple Soft
+      "color": kAccentPurple.withOpacity(0.15),
       "accent": kAccentPurple,
       "icon": Icons.play_circle_filled_rounded
     },
@@ -59,8 +57,8 @@ class _ContentScreenState extends State<ContentScreen> {
       "title": "Membangun Rutinitas Harian",
       "desc": "Panduan membuat jadwal visual agar anak merasa aman & produktif.",
       "source": "TAMTAM.CO.ID",
-      "color": kAccentYellow.withOpacity(0.2), // Yellow Soft
-      "accent": const Color(0xFFE6B800), // Kuning Gelap utk Teks/Icon
+      "color": kAccentYellow.withOpacity(0.2),
+      "accent": const Color(0xFFE6B800),
       "icon": Icons.schedule_rounded,
       "content": """
 Anak-anak dengan Autism Spectrum Disorder (ASD) sering kali memiliki kebutuhan yang kuat akan prediktabilitas. Dunia bisa terasa sangat kacau dan membingungkan bagi mereka. Dengan pendekatan yang tepat, rutinitas harian dapat menjadi "jangkar" yang mendukung perkembangan sosial, kognitif, dan emosional anak.
@@ -132,7 +130,7 @@ Libatkan mereka dalam membuat keputusan kecil ini, dan mereka akan merasa memili
       "title": "Memahami Sensory Overload",
       "desc": "Kenali tanda-tanda anak kelebihan sensori dan cara menenangkannya.",
       "source": "AUTISM-DISCOVERY.COM",
-      "color": kMainTeal.withOpacity(0.15), // Teal Soft
+      "color": kMainTeal.withOpacity(0.15),
       "accent": kMainTeal,
       "icon": Icons.hearing_disabled_rounded,
       "content": """
@@ -218,7 +216,7 @@ Meskipun tidak mungkin untuk menghindari setiap pemicu, ada cara efektif untuk m
       "title": "Terapi Anak Autis di Rumah",
       "desc": "Tips praktis terapi wicara dan okupasi sederhana oleh orang tua.",
       "source": "WICARAKU.ID",
-      "color": kMainTeal.withOpacity(0.15), // Teal Soft (Konsisten)
+      "color": kMainTeal.withOpacity(0.15),
       "accent": kMainTeal,
       "icon": Icons.home_rounded,
       "content": """
@@ -337,7 +335,6 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
           children: [
             const SizedBox(height: 20),
             
-            // Kategori Scroll
             SizedBox(
               height: 90,
               child: ListView.separated(
@@ -384,7 +381,7 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
               ),
             ),
 
-            // Featured Video Banner (warna solid tema, bukan custom brown)
+            // Featured Video Banner 
             if (_selectedCategory == "Semua")
               Padding(
                 padding: const EdgeInsets.all(24),
@@ -395,7 +392,6 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      // Menggunakan kAccentCoral agar lebih hidup tapi tetap dalam tema
                       color: kAccentCoral.withOpacity(0.2), 
                       borderRadius: BorderRadius.circular(24),
                       image: const DecorationImage(
@@ -457,10 +453,9 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
     );
   }
 
-  // --- WIDGET GRID (WARNA & GRADIENT DISESUAIKAN) ---
+  // Widget Card
   Widget _buildUnifiedGridCard(BuildContext context, Map<String, dynamic> item) {
     bool isVideo = item['type'] == 'video';
-    // Menggunakan warna dari item['color'] yang sudah diset pakai tema
     Color cardColor = item['color']; 
     Color accentColor = item['accent'];
 
@@ -474,13 +469,12 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
       },
       child: Container(
         decoration: BoxDecoration(
-          // Gradient halus dari warna tema
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
               cardColor,
-              cardColor.withOpacity(0.8), // Sedikit lebih pekat di bawah
+              cardColor.withOpacity(0.8), 
             ]
           ),
           borderRadius: BorderRadius.circular(24),
@@ -509,7 +503,7 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
                       fontFamily: 'NerkoOne',
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: kDarkGrey.withOpacity(0.8), // Warna teks standar
+                      color: kDarkGrey.withOpacity(0.8),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -527,7 +521,7 @@ Kegiatan sehari-hari yang dilakukan secara konsisten membuat anak lebih siap men
   }
 }
 
-// --- ARTIKEL DETAIL (TETAP SAMA) ---
+// Artikel Detail
 class ArticleDetailScreen extends StatelessWidget {
   final Map<String, dynamic> article;
 
